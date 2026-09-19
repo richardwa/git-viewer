@@ -1,0 +1,24 @@
+{
+  "name": "solid-vanilla-starter",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "format": "bun x prettier -w *.json *.ts ./src",
+    "prebuild": "bun run format",
+    "build": "tsc && vite build",
+    "prestart": "bun run build",
+    "start": "bun src/server/server.ts"
+  },
+  "devDependencies": {
+    "@types/express": "types/express",
+    "express": "^5.2.1",
+    "prettier": "^3.9.6",
+    "typescript": "7",
+    "vite": "^7.3.6"
+  },
+  "dependencies": {
+    "solid-vanilla": "github:richardwa/solid-vanilla#d758c02"
+  }
+}
