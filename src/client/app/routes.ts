@@ -10,6 +10,12 @@ const root = div()
 const router = new HashRouter(root);
 
 router.addRoute("/", () => RepoList());
-router.addRoute("/repo/:name", (params) => RepoView(params.name));
+router.addRoute("/repo/:name", (params) =>
+  RepoView(decodeURIComponent(params.name)),
+);
+// branch names may contain "/" (e.g. feature/json-output), hence the encoding
+router.addRoute("/repo/:name/:branch", (params) =>
+  RepoView(decodeURIComponent(params.name), decodeURIComponent(params.branch)),
+);
 
 export { router };

@@ -66,26 +66,36 @@ const commitLog = (repo: string, selectedBranch: Signal<string | undefined>) =>
       }),
   );
 
-const readmeSection = (repo: string) =>
-  Panel().do(async (node) => {
-    const markdown = await fetchJson("readme", repo);
-    if (markdown) {
-      node.inner(Markdown(markdown));
-    } else {
-      node.inner(div().css("color", "#999").inner("no README found"));
-    }
+const readmeSection = (
+  repo: string,
+  selectedBranch: Signal<string | undefined>,
+) =>
+  Panel().watch(selectedBranch, async (node) => {
+    const branch = selectedBranch.get();
+    const markdown = branch ? await fetchJson("readme", repo, branch) : "";
+    node.inner(
+      markdown
+        ? Markdown(markdown)
+        : div().css("color", "#999").inner("no README found"),
+    );
   });
 
-export const RepoView = (name: string) => {
-  const selectedBranch = signal<string>();
+export const RepoView = (name: string, initialBranch?: string) => {
+  const selectedBranch = signal<string | undefined>(initialBranch);
 
   return vbox()
     .css("gap", "1rem")
     .inner(
       HashLink("#/").inner("← all repos"),
-      Title().css("font-size", "1.4rem").inner(name),
+      Title()
+        .css("font-size", "1.4rem")
+        .watch(selectedBranch, (node) =>
+          node.inner(
+            selectedBranch.get() ? `${name} @ ${selectedBranch.get()}` : name,
+          ),
+        ),
       branchesBar(name, selectedBranch),
       commitLog(name, selectedBranch),
-      readmeSection(name),
+      readmeSection(name, selectedBranch),
     );
 };

@@ -1,6 +1,13 @@
 import express, { Request, Response, Server, NextFunction } from "express";
 import { apiPath, type ServerApi } from "../common/interface";
-import { getGitLog, getBranches, getReadme, listRepos } from "./resources/git";
+import {
+  getGitLog,
+  getBranches,
+  getReadme,
+  listRepos,
+  gitPull,
+  gitPush,
+} from "./resources/git";
 
 export const configureRoutes = (app: Server) => {
   // @ts-ignore
@@ -16,6 +23,8 @@ export const configureRoutes = (app: Server) => {
     readme: getReadme,
     gitBranches: getBranches,
     gitLogs: getGitLog,
+    gitPull: gitPull,
+    gitPush: gitPush,
   };
   const routes = express.Router();
   Object.entries(serverImpl).forEach(([key, fn]) => {

@@ -41,6 +41,13 @@ const gitIn = async (dir: string, command: string, maxBuffer?: number) => {
   return stdout;
 };
 
+const isBare = async (dir: string) =>
+  (await dirExists(path.join(dir, "HEAD"))) &&
+  !(await dirExists(path.join(dir, ".git")));
+
+const isGitDir = async (dir: string) =>
+  (await isBare(dir)) || (await dirExists(path.join(dir, ".git")));
+
 // Resolve a commit-ish ref for HEAD-derived queries; falls back to the first
 // branch when HEAD is dangling (e.g. a bare repo initialized with a different
 // default branch name than the one that was pushed).
@@ -62,9 +69,78 @@ const resolveRef = async (dir: string): Promise<string> => {
   ).trim();
 };
 
-const isGitDir = async (dir: string) => {
-  const isBare = await dirExists(path.join(dir, "HEAD"));
-  return isBare || (await dirExists(path.join(dir, ".git")));
+const branchRefs = async (dir: string): Promise<string[]> =>
+  gitIn(dir, 'git for-each-ref --format="%(refname:short)" refs/heads/')
+    .then((stdout) => stdout.split("\n").filter((line) => line))
+    .catch(() => []);
+
+const readmeFor = async (dir: string, ref: string): Promise<string> => {
+  if (!ref) return "";
+  const tree = await gitIn(dir, `git ls-tree -r --name-only "${ref}"`);
+  const readme = tree
+    .split("\n")
+    .filter((file) => file && !file.includes("/"))
+    .find((file) => /^readme/i.test(file));
+  if (!readme) return "";
+  return await gitIn(
+    dir,
+    `git cat-file -p "${ref}:${readme}"`,
+    16 * 1024 * 1024,
+  );
+};
+
+export const getReadme = async (
+  repo: string,
+  branch?: string,
+): Promise<string> => {
+  const dir = await resolveRepo(repo);
+  try {
+    const ref = branch || (await resolveRef(dir));
+    return await readmeFor(dir, ref);
+  } catch {
+    return "";
+  }
+};
+
+// First few words of the README, with markdown syntax stripped out.
+const excerpt = (markdown: string, maxWords = 10): string => {
+  let inFence = false;
+  return markdown
+    .split("\n")
+    .filter((line) => {
+      if (/^\s*```/.test(line)) {
+        inFence = !inFence;
+        return false;
+      }
+      return !inFence && !/^\s*(#|>|\||[-*]\s|\d+\.\s)/.test(line);
+    })
+    .join(" ")
+    .replace(/https?:\/\/\S+/g, "")
+    .replace(/[*`_\[\]]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, maxWords)
+    .join(" ");
+};
+
+// GitHub-style ahead/behind of the default branch vs its upstream.
+const aheadBehind = async (
+  dir: string,
+  branch: string,
+): Promise<{ ahead: number | null; behind: number | null }> => {
+  try {
+    await gitIn(dir, `git rev-parse --verify -q "origin/${branch}"`);
+    const stdout = await gitIn(
+      dir,
+      `git rev-list --left-right --count "refs/remotes/origin/${branch}"..."refs/heads/${branch}"`,
+    );
+    const [behind, ahead] = stdout.trim().split(/\s+/).map(Number);
+    return { ahead, behind };
+  } catch {
+    return { ahead: null, behind: null };
+  }
 };
 
 export const listRepos = async (): Promise<RepoInfo[]> => {
@@ -77,9 +153,8 @@ export const listRepos = async (): Promise<RepoInfo[]> => {
       .map(async (entry): Promise<RepoInfo | null> => {
         const dir = path.join(reposDir, entry.name);
         if (!(await isGitDir(dir))) return null;
-        const isBare = await dirExists(path.join(dir, "HEAD"));
         let description = "";
-        if (isBare) {
+        if (await isBare(dir)) {
           description = (
             await fs
               .readFile(path.join(dir, "description"), "utf8")
@@ -87,15 +162,20 @@ export const listRepos = async (): Promise<RepoInfo[]> => {
           ).trim();
           if (description.startsWith("Unnamed repository")) description = "";
         }
-        let lastCommitDate = "";
-        try {
-          lastCommitDate = (
-            await gitIn(dir, "git log -1 --branches --format=%aI")
-          ).trim();
-        } catch {
-          // empty or unborn HEAD
-        }
-        return { name: entry.name, description, lastCommitDate };
+        const branches = await branchRefs(dir);
+        const ref = await resolveRef(dir).catch(() => "");
+        const { ahead, behind } = branches.includes(ref)
+          ? await aheadBehind(dir, ref)
+          : { ahead: null, behind: null };
+        const notes = excerpt(await readmeFor(dir, ref).catch(() => ""));
+        return {
+          name: entry.name,
+          description,
+          branches,
+          ahead,
+          behind,
+          notes,
+        };
       }),
   );
   return infos
@@ -103,36 +183,43 @@ export const listRepos = async (): Promise<RepoInfo[]> => {
     .sort((a, b) => a.name.localeCompare(b.name));
 };
 
-export const getReadme = async (repo: string): Promise<string> => {
+// Run a network command (fetch/pull/push) and return its output, keeping the
+// viewer usable even when the command fails.
+const gitNetwork = async (repo: string, command: string): Promise<string> => {
   const dir = await resolveRepo(repo);
   try {
-    const ref = await resolveRef(dir);
-    if (!ref) return "";
-    const tree = await gitIn(dir, `git ls-tree -r --name-only "${ref}"`);
-    const readme = tree
-      .split("\n")
-      .filter((file) => file && !file.includes("/"))
-      .find((file) => /^readme/i.test(file));
-    if (!readme) return "";
-    return await gitIn(
-      dir,
-      `git cat-file -p "${ref}:${readme}"`,
-      16 * 1024 * 1024,
-    );
-  } catch {
-    return "";
+    const { stdout, stderr } = await execAsync(command, { cwd: dir });
+    return (stdout + stderr).trim() || "ok (no output)";
+  } catch (error) {
+    const err = error as { stderr?: string; message?: string };
+    return (err.stderr || err.message || "failed").trim();
   }
 };
 
+export const gitPull = async (repo: string): Promise<string> => {
+  const dir = await resolveRepo(repo);
+  // bare repos have no worktree to merge into, so fetch instead
+  const command = (await isBare(dir))
+    ? "git fetch --all --prune"
+    : "git pull --ff-only";
+  return gitNetwork(repo, command);
+};
+
+export const gitPush = async (repo: string): Promise<string> =>
+  gitNetwork(repo, "git push");
+
 export const getBranches = async (repo: string): Promise<string[]> => {
   const dir = await resolveRepo(repo);
-  const refs = async (spec: string) =>
-    (await gitIn(dir, `git for-each-ref --format="%(refname:short)" ${spec}`))
-      .split("\n")
-      .filter((line) => line);
-  const heads = await refs("refs/heads/");
+  const heads = await branchRefs(dir);
   if (heads.length) return heads;
-  return (await refs("refs/remotes/")).filter((b) => !b.endsWith("/HEAD"));
+  return (
+    await gitIn(
+      dir,
+      'git for-each-ref --format="%(refname:short)" refs/remotes/',
+    )
+  )
+    .split("\n")
+    .filter((line) => line && !line.endsWith("/HEAD"));
 };
 
 export const getGitLog = async (

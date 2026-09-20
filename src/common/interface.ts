@@ -10,14 +10,22 @@ export type GitLog = {
 export type RepoInfo = {
   name: string;
   description: string;
-  lastCommitDate: string;
+  branches: string[];
+  /** commits only on the local default branch (null when no upstream) */
+  ahead: number | null;
+  /** commits only on the upstream of the default branch (null when none) */
+  behind: number | null;
+  /** opening words of the default branch's README */
+  notes: string;
 };
 
 export type ServerApi = {
   repos: () => Promise<RepoInfo[]>;
-  readme: (repo: string) => Promise<string>;
+  readme: (repo: string, branch?: string) => Promise<string>;
   gitBranches: (repo: string) => Promise<string[]>;
   gitLogs: (repo: string, branch: string, lines?: number) => Promise<GitLog[]>;
+  gitPull: (repo: string) => Promise<string>;
+  gitPush: (repo: string) => Promise<string>;
 };
 
 export const fetchJson = <T extends keyof ServerApi>(
