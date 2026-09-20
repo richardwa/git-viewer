@@ -18,8 +18,6 @@ const td = () =>
     .css("vertical-align", "top")
     .css("max-width", "16rem");
 
-const cell = (...children: (BaseNode | string)[]) => td().inner(...children);
-
 const centerCell = (width: string, ...children: (BaseNode | string)[]) =>
   td()
     .css("text-align", "center")
@@ -36,21 +34,23 @@ const headCell = (text: string, opts?: { width?: string; center?: boolean }) =>
     .inner(text);
 
 const repoCell = (repo: RepoInfo) =>
-  cell(
-    vbox()
-      .css("gap", "0.15rem")
-      .inner(
-        HashLink(`#/repo/${repo.name}`)
-          .css("font-weight", "bold")
-          .inner(repo.name),
-        repo.description
-          ? div()
-              .css("color", "#999")
-              .css("font-size", "0.85rem")
-              .inner(repo.description)
-          : fragment(),
-      ),
-  );
+  td()
+    .css("width", "16rem")
+    .inner(
+      vbox()
+        .css("gap", "0.15rem")
+        .inner(
+          HashLink(`#/repo/${repo.name}`)
+            .css("font-weight", "bold")
+            .inner(repo.name),
+          repo.description
+            ? div()
+                .css("color", "#999")
+                .css("font-size", "0.85rem")
+                .inner(repo.description)
+            : fragment(),
+        ),
+    );
 
 const commitsCell = (repo: RepoInfo) => {
   if (repo.ahead === null || repo.behind === null) {
@@ -69,13 +69,16 @@ const commitsCell = (repo: RepoInfo) => {
 };
 
 const notesCell = (repo: RepoInfo) =>
-  cell(
-    (repo.notes ? div() : div().css("color", "#999"))
-      .css("white-space", "nowrap")
-      .css("overflow", "hidden")
-      .css("text-overflow", "ellipsis")
-      .inner(repo.notes ?? "—"),
-  );
+  td()
+    .css("min-width", "12rem")
+    .css("max-width", "none")
+    .inner(
+      (repo.notes ? div() : div().css("color", "#999"))
+        .css("white-space", "nowrap")
+        .css("overflow", "hidden")
+        .css("text-overflow", "ellipsis")
+        .inner(repo.notes ?? "—"),
+    );
 
 const pushCell = (repo: RepoInfo, run: (repo: string) => Promise<void>) =>
   centerCell(
@@ -145,7 +148,7 @@ const row = (info: Signal<RepoInfo>) =>
 const headerRow = h("tr").inner(
   ...(
     [
-      ["Repositories", undefined],
+      ["Repositories", "16rem"],
       ["Push", "5rem"],
       ["Commits", "7rem"],
       ["Pull", "5rem"],
@@ -171,6 +174,9 @@ export const RepoList = () =>
         node.inner(
           h("table")
             .css("border-collapse", "collapse")
+            .css("table-layout", "fixed")
+            .css("width", "100%")
+            .css("min-width", "45rem")
             .inner(headerRow, ...repos.map((repo) => row(signal(repo)))),
           StatusLine(),
         );
