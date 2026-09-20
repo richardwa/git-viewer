@@ -5,6 +5,7 @@ import {
   getBranches,
   getReadme,
   listRepos,
+  getRepoInfo,
   gitPull,
   gitPush,
 } from "./resources/git";
@@ -20,6 +21,7 @@ export const configureRoutes = (app: Server) => {
 
   const serverImpl: ServerApi = {
     repos: listRepos,
+    repoInfo: getRepoInfo,
     readme: getReadme,
     gitBranches: getBranches,
     gitLogs: getGitLog,

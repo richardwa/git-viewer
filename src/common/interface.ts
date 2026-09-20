@@ -20,6 +20,8 @@ export type RepoInfo = {
 
 export type ServerApi = {
   repos: () => Promise<RepoInfo[]>;
+  /** fresh info for one repo (null when unknown) */
+  repoInfo: (repo: string) => Promise<RepoInfo | null>;
   readme: (repo: string, branch?: string) => Promise<string>;
   gitBranches: (repo: string) => Promise<string[]>;
   gitLogs: (repo: string, branch: string, lines?: number) => Promise<GitLog[]>;

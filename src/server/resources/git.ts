@@ -76,6 +76,28 @@ const excerpt = (markdown: string, maxWords = 10): string => {
     .join(" ");
 };
 
+// Collect display info (description, ahead/behind, notes) for one repo.
+// Returns null when the directory is missing or is not a git repo.
+export const getRepoInfo = async (name: string): Promise<RepoInfo | null> => {
+  if (!isValidRepoName(name)) return null;
+  const dir = path.join(reposDir, name);
+  if (!(await dirExists(dir)) || !(await isGitDir(dir))) return null;
+  let description = "";
+  if (await isBare(dir)) {
+    description = (
+      await fs.readFile(path.join(dir, "description"), "utf8").catch(() => "")
+    ).trim();
+    if (description.startsWith("Unnamed repository")) description = "";
+  }
+  const branches = await gitcli.branchRefs(dir);
+  const ref = await gitcli.resolveRef(dir).catch(() => "");
+  const { ahead, behind } = branches.includes(ref)
+    ? await gitcli.aheadBehind(dir, ref)
+    : { ahead: null, behind: null };
+  const notes = excerpt(await gitcli.readmeFor(dir, ref).catch(() => ""));
+  return { name, description, ahead, behind, notes };
+};
+
 export const listRepos = async (): Promise<RepoInfo[]> => {
   const entries = await fs
     .readdir(reposDir, { withFileTypes: true })
@@ -83,32 +105,7 @@ export const listRepos = async (): Promise<RepoInfo[]> => {
   const infos = await Promise.all(
     entries
       .filter((entry) => entry.isDirectory())
-      .map(async (entry): Promise<RepoInfo | null> => {
-        const dir = path.join(reposDir, entry.name);
-        if (!(await isGitDir(dir))) return null;
-        let description = "";
-        if (await isBare(dir)) {
-          description = (
-            await fs
-              .readFile(path.join(dir, "description"), "utf8")
-              .catch(() => "")
-          ).trim();
-          if (description.startsWith("Unnamed repository")) description = "";
-        }
-        const branches = await gitcli.branchRefs(dir);
-        const ref = await gitcli.resolveRef(dir).catch(() => "");
-        const { ahead, behind } = branches.includes(ref)
-          ? await gitcli.aheadBehind(dir, ref)
-          : { ahead: null, behind: null };
-        const notes = excerpt(await gitcli.readmeFor(dir, ref).catch(() => ""));
-        return {
-          name: entry.name,
-          description,
-          ahead,
-          behind,
-          notes,
-        };
-      }),
+      .map((entry) => getRepoInfo(entry.name)),
   );
   return infos
     .filter((info): info is RepoInfo => info !== null)

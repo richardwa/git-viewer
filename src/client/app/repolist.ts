@@ -1,4 +1,13 @@
-import { BaseNode, hbox, vbox, div, fragment, h, signal } from "solid-vanilla";
+import {
+  BaseNode,
+  hbox,
+  vbox,
+  div,
+  fragment,
+  h,
+  signal,
+  Signal,
+} from "solid-vanilla";
 import { Button, HashLink } from "./components";
 import { RepoInfo, fetchJson } from "../../common/interface";
 
@@ -68,34 +77,24 @@ const notesCell = (repo: RepoInfo) =>
       .inner(repo.notes ?? "—"),
   );
 
-const pushCell = (repo: RepoInfo) =>
+const pushCell = (repo: RepoInfo, run: (repo: string) => Promise<void>) =>
   centerCell(
     "5rem",
     repo.ahead
       ? Button()
-          .on("click", async () => {
-            status.set(`${repo.name}: pushing…`);
-            status.set(
-              `${repo.name} push → ${await fetchJson("gitPush", repo.name)}`,
-            );
-          })
+          .on("click", () => run(repo.name))
           .inner("push")
       : repo.ahead === null
         ? div().css("color", "#999").inner("—")
         : fragment(),
   );
 
-const pullCell = (repo: RepoInfo) =>
+const pullCell = (repo: RepoInfo, run: (repo: string) => Promise<void>) =>
   centerCell(
     "5rem",
     repo.behind
       ? Button()
-          .on("click", async () => {
-            status.set(`${repo.name}: pulling…`);
-            status.set(
-              `${repo.name} pull → ${await fetchJson("gitPull", repo.name)}`,
-            );
-          })
+          .on("click", () => run(repo.name))
           .inner("pull")
       : repo.behind === null
         ? div().css("color", "#999").inner("—")
@@ -112,6 +111,36 @@ const StatusLine = () =>
         : fragment(),
     ),
   );
+
+// Run push/pull on a repo, then refresh that row's state. On success the
+// fresh ahead/behind counts (and notes) re-render via the row's signal.
+const runGit = async (info: Signal<RepoInfo>, action: "push" | "pull") => {
+  const repo = info.get();
+  status.set(`${repo.name}: ${action}ing…`);
+  try {
+    const out = await fetchJson(
+      action === "push" ? "gitPush" : "gitPull",
+      repo.name,
+    );
+    status.set(`${repo.name} ${action} → ${out}`);
+    const fresh = await fetchJson("repoInfo", repo.name);
+    if (fresh) info.set(fresh, true);
+  } catch (err) {
+    status.set(`${repo.name} ${action} failed → ${err}`);
+  }
+};
+
+const row = (info: Signal<RepoInfo>) =>
+  h("tr").watch(info, (node) => {
+    const repo = info.get();
+    node.inner(
+      repoCell(repo),
+      pushCell(repo, () => runGit(info, "push")),
+      commitsCell(repo),
+      pullCell(repo, () => runGit(info, "pull")),
+      notesCell(repo),
+    );
+  });
 
 const headerRow = h("tr").inner(
   ...(
@@ -142,18 +171,7 @@ export const RepoList = () =>
         node.inner(
           h("table")
             .css("border-collapse", "collapse")
-            .inner(
-              headerRow,
-              ...repos.map((repo) =>
-                h("tr").inner(
-                  repoCell(repo),
-                  pushCell(repo),
-                  commitsCell(repo),
-                  pullCell(repo),
-                  notesCell(repo),
-                ),
-              ),
-            ),
+            .inner(headerRow, ...repos.map((repo) => row(signal(repo)))),
           StatusLine(),
         );
       }),
