@@ -34,23 +34,6 @@ const repoCell = (repo: RepoInfo) =>
       ),
   );
 
-const branchesCell = (repo: RepoInfo) =>
-  cell(
-    vbox()
-      .css("gap", "0.25rem")
-      .inner(
-        ...repo.branches.map((branch) =>
-          HashLink(`#/repo/${repo.name}/${encodeURIComponent(branch)}`)
-            .css("display", "block")
-            .css("overflow", "hidden")
-            .css("text-overflow", "ellipsis")
-            .css("white-space", "nowrap")
-            .attr("title", branch)
-            .inner(branch),
-        ),
-      ),
-  );
-
 const commitsCell = (repo: RepoInfo) => {
   if (repo.ahead === null || repo.behind === null) {
     return cell(div().css("color", "#999").inner("no upstream"));
@@ -106,9 +89,7 @@ const StatusLine = () =>
   );
 
 const headerRow = h("tr").inner(
-  ...["Repo", "Branches", "Commits", "Notes", "Action"].map((title) =>
-    headCell(title),
-  ),
+  ...["Repo", "Commits", "Notes", "Action"].map((title) => headCell(title)),
 );
 
 export const RepoList = () =>
@@ -134,7 +115,6 @@ export const RepoList = () =>
               ...repos.map((repo) =>
                 h("tr").inner(
                   repoCell(repo),
-                  branchesCell(repo),
                   commitsCell(repo),
                   notesCell(repo),
                   actionCell(repo),

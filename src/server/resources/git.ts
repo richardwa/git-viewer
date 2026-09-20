@@ -104,7 +104,6 @@ export const listRepos = async (): Promise<RepoInfo[]> => {
         return {
           name: entry.name,
           description,
-          branches,
           ahead,
           behind,
           notes,

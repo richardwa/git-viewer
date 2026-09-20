@@ -1,4 +1,13 @@
-import { hbox, vbox, div, grid, fragment, signal, Signal } from "solid-vanilla";
+import {
+  h,
+  hbox,
+  vbox,
+  div,
+  grid,
+  fragment,
+  signal,
+  Signal,
+} from "solid-vanilla";
 import { HashLink, Panel, Title } from "./components";
 import { GitLog, fetchJson } from "../../common/interface";
 import { formatDate } from "../../common/util";
@@ -25,29 +34,28 @@ const logRow = (log: GitLog) =>
 const branchesBar = (
   repo: string,
   selectedBranch: Signal<string | undefined>,
-) => {
-  const branches = fragment().do(async (node) => {
-    const list = await fetchJson("gitBranches", repo);
-    const sorted = sortBranches(list);
-    if (sorted.length && !selectedBranch.get()) {
-      selectedBranch.set(sorted[0]);
-    }
-    node.inner(
-      ...sorted.map((branch) =>
-        HashLink("#")
-          .css("font-weight", () =>
-            selectedBranch.get() === branch ? "bold" : "normal",
-          )
-          .on("click", (event) => {
-            event.preventDefault();
-            selectedBranch.set(branch);
-          })
-          .inner(branch),
-      ),
+) =>
+  hbox()
+    .css("gap", "0.5rem")
+    .css("align-items", "center")
+    .inner(
+      Title().inner("Branches"),
+      h("select")
+        .css("padding", "0.25rem")
+        .on("change", (event) => selectedBranch.set(event.target.value))
+        .do(async (node) => {
+          const sorted = sortBranches(await fetchJson("gitBranches", repo));
+          if (sorted.length && !selectedBranch.get()) {
+            selectedBranch.set(sorted[0]);
+          }
+          node.inner(
+            ...sorted.map((branch) =>
+              h("option").attr("value", branch).inner(branch),
+            ),
+          );
+          (node.el as HTMLSelectElement).value = selectedBranch.get() ?? "";
+        }),
     );
-  });
-  return hbox().css("gap", "1rem").inner(Title().inner("Branches"), branches);
-};
 
 const commitLog = (repo: string, selectedBranch: Signal<string | undefined>) =>
   vbox().inner(

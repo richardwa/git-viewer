@@ -10,7 +10,6 @@ export type GitLog = {
 export type RepoInfo = {
   name: string;
   description: string;
-  branches: string[];
   /** commits only on the local default branch (null when no upstream) */
   ahead: number | null;
   /** commits only on the upstream of the default branch (null when none) */
