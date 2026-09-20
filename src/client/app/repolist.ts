@@ -36,7 +36,7 @@ const repoCell = (repo: RepoInfo) =>
 
 const commitsCell = (repo: RepoInfo) => {
   if (repo.ahead === null || repo.behind === null) {
-    return cell(div().css("color", "#999").inner("no upstream"));
+    return cell(div().css("color", "#999").inner("n/a"));
   }
   return cell(
     hbox()
@@ -55,26 +55,36 @@ const notesCell = (repo: RepoInfo) =>
       : div().css("color", "#999").inner("—"),
   );
 
-const actionCell = (repo: RepoInfo) =>
+const pushCell = (repo: RepoInfo) =>
   cell(
-    hbox().inner(
-      Button()
-        .on("click", async () => {
-          status.set(`${repo.name}: pulling…`);
-          status.set(
-            `${repo.name} pull → ${await fetchJson("gitPull", repo.name)}`,
-          );
-        })
-        .inner("pull"),
-      Button()
-        .on("click", async () => {
-          status.set(`${repo.name}: pushing…`);
-          status.set(
-            `${repo.name} push → ${await fetchJson("gitPush", repo.name)}`,
-          );
-        })
-        .inner("push"),
-    ),
+    repo.ahead
+      ? Button()
+          .on("click", async () => {
+            status.set(`${repo.name}: pushing…`);
+            status.set(
+              `${repo.name} push → ${await fetchJson("gitPush", repo.name)}`,
+            );
+          })
+          .inner("push")
+      : repo.ahead === null
+        ? div().css("color", "#999").inner("—")
+        : fragment(),
+  );
+
+const pullCell = (repo: RepoInfo) =>
+  cell(
+    repo.behind
+      ? Button()
+          .on("click", async () => {
+            status.set(`${repo.name}: pulling…`);
+            status.set(
+              `${repo.name} pull → ${await fetchJson("gitPull", repo.name)}`,
+            );
+          })
+          .inner("pull")
+      : repo.behind === null
+        ? div().css("color", "#999").inner("—")
+        : fragment(),
   );
 
 const status = signal<string>("");
@@ -89,7 +99,9 @@ const StatusLine = () =>
   );
 
 const headerRow = h("tr").inner(
-  ...["Repo", "Commits", "Notes", "Action"].map((title) => headCell(title)),
+  ...["Repo", "Push", "Commits", "Pull", "Notes"].map((title) =>
+    headCell(title),
+  ),
 );
 
 export const RepoList = () =>
@@ -115,9 +127,10 @@ export const RepoList = () =>
               ...repos.map((repo) =>
                 h("tr").inner(
                   repoCell(repo),
+                  pushCell(repo),
                   commitsCell(repo),
+                  pullCell(repo),
                   notesCell(repo),
-                  actionCell(repo),
                 ),
               ),
             ),
