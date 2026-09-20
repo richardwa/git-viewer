@@ -7,6 +7,7 @@ const cell = (...children: (BaseNode | string)[]) =>
     .css("padding", "0.4rem 0.75rem")
     .css("border-bottom", "1px solid #555")
     .css("vertical-align", "top")
+    .css("max-width", "16rem")
     .inner(...children);
 
 const headCell = (text: string) =>
@@ -35,13 +36,17 @@ const repoCell = (repo: RepoInfo) =>
 
 const branchesCell = (repo: RepoInfo) =>
   cell(
-    hbox()
-      .css("flex-wrap", "wrap")
+    vbox()
+      .css("gap", "0.25rem")
       .inner(
         ...repo.branches.map((branch) =>
-          HashLink(`#/repo/${repo.name}/${encodeURIComponent(branch)}`).inner(
-            branch,
-          ),
+          HashLink(`#/repo/${repo.name}/${encodeURIComponent(branch)}`)
+            .css("display", "block")
+            .css("overflow", "hidden")
+            .css("text-overflow", "ellipsis")
+            .css("white-space", "nowrap")
+            .attr("title", branch)
+            .inner(branch),
         ),
       ),
   );
