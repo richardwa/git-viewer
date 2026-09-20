@@ -165,4 +165,14 @@ export const fetchAll = (dir: string): Promise<string> =>
 export const pullFF = (dir: string): Promise<string> =>
   tryGit(dir, ["pull", "--ff-only"]);
 
-export const push = (dir: string): Promise<string> => tryGit(dir, ["push"]);
+export const push = async (dir: string): Promise<string> => {
+  const output = await tryGit(dir, ["push"]);
+  if (!/no upstream branch/i.test(output)) return output;
+  // Current branch has no upstream yet: push it and set one up, using the
+  // first configured remote (origin first when present).
+  const branch = await resolveRef(dir);
+  const remoteList = await remotes(dir);
+  const remote = remoteList.find((r) => r === "origin") ?? remoteList[0];
+  if (!branch || !remote) return output;
+  return tryGit(dir, ["push", "--set-upstream", remote, branch]);
+};
