@@ -1,20 +1,29 @@
 import { BaseNode, hbox, vbox, div, fragment, h, signal } from "solid-vanilla";
-import { Button, HashLink, Title } from "./components";
+import { Button, HashLink } from "./components";
 import { RepoInfo, fetchJson } from "../../common/interface";
 
-const cell = (...children: (BaseNode | string)[]) =>
+const td = () =>
   h("td")
     .css("padding", "0.4rem 0.75rem")
     .css("border-bottom", "1px solid #555")
     .css("vertical-align", "top")
-    .css("max-width", "16rem")
+    .css("max-width", "16rem");
+
+const cell = (...children: (BaseNode | string)[]) => td().inner(...children);
+
+const centerCell = (width: string, ...children: (BaseNode | string)[]) =>
+  td()
+    .css("text-align", "center")
+    .css("width", width)
+    .css("max-width", width)
     .inner(...children);
 
-const headCell = (text: string) =>
+const headCell = (text: string, opts?: { width?: string; center?: boolean }) =>
   h("th")
-    .css("text-align", "left")
+    .css("text-align", opts?.center ? "center" : "left")
     .css("padding", "0.4rem 0.75rem")
     .css("border-bottom", "1px solid #888")
+    .css("width", opts?.width ?? "auto")
     .inner(text);
 
 const repoCell = (repo: RepoInfo) =>
@@ -36,11 +45,13 @@ const repoCell = (repo: RepoInfo) =>
 
 const commitsCell = (repo: RepoInfo) => {
   if (repo.ahead === null || repo.behind === null) {
-    return cell(div().css("color", "#999").inner("n/a"));
+    return centerCell("7rem", div().css("color", "#999").inner("n/a"));
   }
-  return cell(
+  return centerCell(
+    "7rem",
     hbox()
       .css("gap", "0.5rem")
+      .css("justify-content", "center")
       .inner(
         h("span").css("color", "#7bc47f").inner(`↑${repo.ahead}`),
         h("span").css("color", "#e57373").inner(`↓${repo.behind}`),
@@ -50,13 +61,16 @@ const commitsCell = (repo: RepoInfo) => {
 
 const notesCell = (repo: RepoInfo) =>
   cell(
-    repo.notes
-      ? div().inner(repo.notes)
-      : div().css("color", "#999").inner("—"),
+    (repo.notes ? div() : div().css("color", "#999"))
+      .css("white-space", "nowrap")
+      .css("overflow", "hidden")
+      .css("text-overflow", "ellipsis")
+      .inner(repo.notes ?? "—"),
   );
 
 const pushCell = (repo: RepoInfo) =>
-  cell(
+  centerCell(
+    "5rem",
     repo.ahead
       ? Button()
           .on("click", async () => {
@@ -72,7 +86,8 @@ const pushCell = (repo: RepoInfo) =>
   );
 
 const pullCell = (repo: RepoInfo) =>
-  cell(
+  centerCell(
+    "5rem",
     repo.behind
       ? Button()
           .on("click", async () => {
@@ -99,16 +114,21 @@ const StatusLine = () =>
   );
 
 const headerRow = h("tr").inner(
-  ...["Repo", "Push", "Commits", "Pull", "Notes"].map((title) =>
-    headCell(title),
-  ),
+  ...(
+    [
+      ["Repositories", undefined],
+      ["Push", "5rem"],
+      ["Commits", "7rem"],
+      ["Pull", "5rem"],
+      ["Notes", undefined],
+    ] as [string, string | undefined][]
+  ).map(([title, width]) => headCell(title, { width, center: !!width })),
 );
 
 export const RepoList = () =>
   vbox()
     .css("gap", "1rem")
     .inner(
-      Title().inner("Repositories"),
       fragment().do(async (node) => {
         const repos = await fetchJson("repos");
         if (!repos.length) {
