@@ -33,18 +33,27 @@ const headCell = (text: string, opts?: { width?: string; center?: boolean }) =>
     .css("width", opts?.width ?? "auto")
     .inner(text);
 
+const truncate = () =>
+  div()
+    .css("white-space", "nowrap")
+    .css("overflow", "hidden")
+    .css("text-overflow", "ellipsis");
+
 const repoCell = (repo: RepoInfo) =>
   td()
     .css("width", "16rem")
+    .css("overflow", "hidden")
     .inner(
       vbox()
         .css("gap", "0.15rem")
         .inner(
-          HashLink(`#/repo/${repo.name}`)
-            .css("font-weight", "bold")
-            .inner(repo.name),
+          truncate().inner(
+            HashLink(`#/repo/${repo.name}`)
+              .css("font-weight", "bold")
+              .inner(repo.name),
+          ),
           repo.description
-            ? div()
+            ? truncate()
                 .css("color", "#999")
                 .css("font-size", "0.85rem")
                 .inner(repo.description)
