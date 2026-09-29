@@ -9,6 +9,7 @@ import {
   gitPull,
   gitPush,
 } from "./resources/git";
+import { httpRepos } from "./resources/git-http";
 
 export const configureRoutes = (app: Server) => {
   // @ts-ignore
@@ -27,6 +28,7 @@ export const configureRoutes = (app: Server) => {
     gitLogs: getGitLog,
     gitPull: gitPull,
     gitPush: gitPush,
+    publicRepos: () => Promise.resolve(httpRepos()),
   };
   const routes = express.Router();
   Object.entries(serverImpl).forEach(([key, fn]) => {

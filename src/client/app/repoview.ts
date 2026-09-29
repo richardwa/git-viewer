@@ -88,6 +88,18 @@ const readmeSection = (
     );
   });
 
+const cloneSection = (repo: string) =>
+  div()
+    .do(async (node) => {
+      const repos = await fetchJson("publicRepos");
+      if (!repos.includes(repo)) return;
+      const url = `http://${window.location.host}/git/${repo}.git`;
+      node.inner(h("code").inner(`git clone ${url}`));
+      node.el.style.display = "block";
+    })
+    .css("color", "#9cf")
+    .css("font-family", "monospace");
+
 export const RepoView = (name: string, initialBranch?: string) => {
   const selectedBranch = signal<string | undefined>(initialBranch);
 
@@ -95,6 +107,7 @@ export const RepoView = (name: string, initialBranch?: string) => {
     .css("gap", "1rem")
     .inner(
       HashLink("#/").inner("← all repos"),
+      cloneSection(name),
       Title()
         .css("font-size", "1.4rem")
         .watch(selectedBranch, (node) =>

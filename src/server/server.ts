@@ -1,11 +1,14 @@
 import express, { Request, Response } from "express";
 import path from "path";
 import { configureRoutes } from "./routes";
+import { createHttpRouter } from "./resources/git-http";
 
 const app = express();
 const port = process.env.PORT || 5177;
 
 configureRoutes(app);
+// read-only git smart HTTP for PUBLIC_REPOS repos
+app.use("/git", createHttpRouter());
 
 // Serve frontend from built Vite dist
 const distPath = path.resolve(__dirname, "../../dist");

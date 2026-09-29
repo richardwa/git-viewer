@@ -22,6 +22,8 @@ const isValidRepoName = (repo: string) =>
   !repo.includes("/") &&
   !repo.includes("\\");
 
+export { isValidRepoName };
+
 const resolveRepo = async (repo: string) => {
   if (!isValidRepoName(repo)) {
     throw new Error(`unknown repo: ${repo}`);
@@ -36,6 +38,8 @@ const resolveRepo = async (repo: string) => {
 const isBare = async (dir: string) =>
   (await dirExists(path.join(dir, "HEAD"))) &&
   !(await dirExists(path.join(dir, ".git")));
+
+export { isBare };
 
 const isGitDir = async (dir: string) =>
   (await isBare(dir)) || (await dirExists(path.join(dir, ".git")));

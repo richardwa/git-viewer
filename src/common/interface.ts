@@ -27,6 +27,8 @@ export type ServerApi = {
   gitLogs: (repo: string, branch: string, lines?: number) => Promise<GitLog[]>;
   gitPull: (repo: string) => Promise<string>;
   gitPush: (repo: string) => Promise<string>;
+  /** repo names served read-only over http (/git/<name>.git) */
+  publicRepos: () => Promise<string[]>;
 };
 
 export const fetchJson = <T extends keyof ServerApi>(
