@@ -6,22 +6,42 @@
 //
 //   git clone http://localhost:5177/git/myrepo.git
 //
-// Repos are opt-in via the PUBLIC_REPOS env var (comma-separated names that
-// must live inside reposDir). Pushing is refused: any receive-pack request
-// is rejected before git-http-backend ever runs.
+// Repos are opt-out via the PRIVATE_REPOS env var (comma-separated names):
+// every repo in reposDir is served over HTTP except the listed ones. Pushing
+// is refused: any receive-pack request is rejected before git-http-backend
+// ever runs.
 import { spawn } from "child_process";
+import fs from "node:fs/promises";
 import path from "node:path";
 import express, { Request, Response, Router } from "express";
 import { reposDir, isValidRepoName, isBare } from "./git";
 
-/** Repo names with read-only HTTP access; empty list means none. */
-export const httpRepos = (): string[] =>
-  (process.env.PUBLIC_REPOS ?? "")
+/** Repo names excluded from read-only HTTP access; empty list means all public. */
+export const privateRepos = (): string[] =>
+  (process.env.PRIVATE_REPOS ?? "")
     .split(",")
     .map((name) => name.trim())
     .filter((name) => name && isValidRepoName(name));
 
-export const isHttpRepo = (repo: string): boolean => httpRepos().includes(repo);
+/** Repo names with read-only HTTP access: everything in reposDir minus the private list. */
+export const httpRepos = async (): Promise<string[]> => {
+  let entries: string[] = [];
+  try {
+    entries = await fs.readdir(reposDir);
+  } catch {
+    return [];
+  }
+  const privateList = privateRepos();
+  return entries.filter(
+    (name) =>
+      !name.startsWith(".") &&
+      isValidRepoName(name) &&
+      !privateList.includes(name),
+  );
+};
+
+export const isHttpRepo = async (repo: string): Promise<boolean> =>
+  (await httpRepos()).includes(repo);
 
 // Only ever serve the read-only upload-pack service.
 const isReadOnly = (service: string | undefined, pathInfo: string): boolean =>
@@ -117,7 +137,7 @@ const runCgi = async (
   });
 };
 
-/** Express router serving read-only smart HTTP for PUBLIC_REPOS repos. */
+/** Express router serving read-only smart HTTP for all non-private repos. */
 
 export const createHttpRouter = (): Router => {
   const router = express.Router();
@@ -134,7 +154,7 @@ export const createHttpRouter = (): Router => {
     if (!isValidRepoName(repo)) {
       return next();
     }
-    if (!isHttpRepo(repo)) {
+    if (!(await isHttpRepo(repo))) {
       return res
         .status(404)
         .json({ error: `repo '${repo}' is not served over http` });

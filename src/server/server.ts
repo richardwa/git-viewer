@@ -7,7 +7,7 @@ const app = express();
 const port = process.env.PORT || 5177;
 
 configureRoutes(app);
-// read-only git smart HTTP for PUBLIC_REPOS repos
+// read-only git smart HTTP for non-PRIVATE_REPOS repos
 app.use("/git", createHttpRouter());
 
 // Serve frontend from built Vite dist

@@ -31,13 +31,13 @@ const logs = await fetchJson("gitLogs", branch, maxLines.get()); // input and re
 
 ## Read-only git HTTP access
 
-A selected set of repos can be cloned/fetched over HTTP while pushing stays
-disabled. List the repo names (that live inside `REPOS_DIR`) in `PUBLIC_REPOS`:
+All repos in `REPOS_DIR` can be cloned/fetched over HTTP while pushing stays
+disabled — except those listed in `PRIVATE_REPOS`:
 
 ```bash
-PUBLIC_REPOS=repo1,repo2 bun run start
+PRIVATE_REPOS=secret-repo bun run start
 git clone http://localhost:5177/git/repo1.git   # read-only
 ```
 
 Requests are proxied to `git http-backend`; any receive-pack (push) request
-gets a 403. Repos not listed in `PUBLIC_REPOS` are not served at all.
+gets a 403. Repos named in `PRIVATE_REPOS` are not served at all.

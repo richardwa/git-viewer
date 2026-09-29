@@ -28,7 +28,7 @@ export const configureRoutes = (app: Server) => {
     gitLogs: getGitLog,
     gitPull: gitPull,
     gitPush: gitPush,
-    publicRepos: () => Promise.resolve(httpRepos()),
+    publicRepos: () => httpRepos(),
   };
   const routes = express.Router();
   Object.entries(serverImpl).forEach(([key, fn]) => {
