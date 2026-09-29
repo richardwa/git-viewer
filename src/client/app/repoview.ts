@@ -93,7 +93,7 @@ const cloneSection = (repo: string) =>
     .do(async (node) => {
       const repos = await fetchJson("publicRepos");
       if (!repos.includes(repo)) return;
-      const url = `http://${window.location.host}/git/${repo}.git`;
+      const url = `${window.location.protocol}//${window.location.host}/${repo}.git`;
       node.inner(h("code").inner(`git clone ${url}`));
       node.el.style.display = "block";
     })

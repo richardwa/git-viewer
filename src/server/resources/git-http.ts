@@ -1,10 +1,10 @@
 // Read-only git smart-HTTP access for a selected set of repos.
 //
-// Mount this router at `/git`; each request is proxied to `git http-backend`
-// running as a CGI subprocess (GIT_PROJECT_ROOT = reposDir). Fetching and
-// cloning work with any stock git client:
+// Mount this router at the server root (no prefix); each request is proxied to
+// `git http-backend` running as a CGI subprocess (GIT_PROJECT_ROOT = reposDir).
+// Fetching and cloning work with any stock git client:
 //
-//   git clone http://localhost:5177/git/myrepo.git
+//   git clone http://localhost:5177/myrepo.git
 //
 // Repos are opt-out via the PRIVATE_REPOS env var (comma-separated names):
 // every repo in reposDir is served over HTTP except the listed ones. Pushing
