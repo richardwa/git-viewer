@@ -1,6 +1,13 @@
+/* Force a monospaced font across Pico's typography (Pico v2 variable) */
+:root {
+  --pico-font-family:
+    "SFMono-Regular", "Cascadia Mono", "JetBrains Mono", "Fira Code", Menlo,
+    Consolas, "DejaVu Sans Mono", monospace;
+}
+
 body,
 html {
   margin: 0;
   padding: 0;
-  font-family: monospace;
+  font-family: var(--pico-font-family);
 }

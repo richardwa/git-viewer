@@ -24,12 +24,25 @@ const isValidRepoName = (repo: string) =>
 
 export { isValidRepoName };
 
+/** Display name for a repo directory: bare repos are conventionally stored
+ * as <name>.git, and the suffix is not part of the repo name. */
+export const repoName = (dir: string) => dir.replace(/\.git$/, "");
+
+/** Directory for a repo name: tries <name> first, then <name>.git (the
+ * conventional storage for bare repos). Null when neither exists. */
+export const repoDir = async (repo: string): Promise<string | null> => {
+  const plain = path.join(reposDir, repo);
+  if (await dirExists(plain)) return plain;
+  const dotted = `${plain}.git`;
+  return (await dirExists(dotted)) ? dotted : null;
+};
+
 const resolveRepo = async (repo: string) => {
   if (!isValidRepoName(repo)) {
     throw new Error(`unknown repo: ${repo}`);
   }
-  const dir = path.join(reposDir, repo);
-  if (!(await dirExists(dir))) {
+  const dir = await repoDir(repo);
+  if (!dir) {
     throw new Error(`unknown repo: ${repo}`);
   }
   return dir;
@@ -84,8 +97,8 @@ const excerpt = (markdown: string, maxWords = 10): string => {
 // Returns null when the directory is missing or is not a git repo.
 export const getRepoInfo = async (name: string): Promise<RepoInfo | null> => {
   if (!isValidRepoName(name)) return null;
-  const dir = path.join(reposDir, name);
-  if (!(await dirExists(dir)) || !(await isGitDir(dir))) return null;
+  const dir = await repoDir(name);
+  if (!dir || !(await isGitDir(dir))) return null;
   let description = "";
   if (await isBare(dir)) {
     description = (
@@ -106,11 +119,15 @@ export const listRepos = async (): Promise<RepoInfo[]> => {
   const entries = await fs
     .readdir(reposDir, { withFileTypes: true })
     .catch(() => []);
-  const infos = await Promise.all(
-    entries
-      .filter((entry) => entry.isDirectory())
-      .map((entry) => getRepoInfo(entry.name)),
-  );
+  // bare repos on disk are <name>.git; dedupe in case both spellings exist
+  const names = [
+    ...new Set(
+      entries
+        .filter((entry) => entry.isDirectory())
+        .map((entry) => repoName(entry.name)),
+    ),
+  ];
+  const infos = await Promise.all(names.map((name) => getRepoInfo(name)));
   return infos
     .filter((info): info is RepoInfo => info !== null)
     .sort((a, b) => a.name.localeCompare(b.name));

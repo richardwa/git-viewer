@@ -10,7 +10,7 @@
     "resolveJsonModule": true,
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
-    "types": ["bun", "node", "express"]
+    "types": ["bun", "node", "express", "vite/client"]
   },
   "include": ["src", "vite.config.ts"]
 }

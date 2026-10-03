@@ -14,7 +14,7 @@ import { spawn } from "child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
 import express, { Request, Response, Router } from "express";
-import { reposDir, isValidRepoName, isBare } from "./git";
+import { reposDir, isValidRepoName, isBare, repoName, repoDir } from "./git";
 
 /** Repo names excluded from read-only HTTP access; empty list means all public. */
 export const privateRepos = (): string[] =>
@@ -32,12 +32,14 @@ export const httpRepos = async (): Promise<string[]> => {
     return [];
   }
   const privateList = privateRepos();
-  return entries.filter(
-    (name) =>
-      !name.startsWith(".") &&
-      isValidRepoName(name) &&
-      !privateList.includes(name),
-  );
+  return [
+    ...new Set(
+      entries
+        .filter((name) => !name.startsWith(".") && isValidRepoName(name))
+        .map((name) => repoName(name))
+        .filter((name) => !privateList.includes(name)),
+    ),
+  ];
 };
 
 export const isHttpRepo = async (repo: string): Promise<boolean> =>
@@ -174,12 +176,16 @@ export const createHttpRouter = (): Router => {
     }
 
     // http-backend needs PATH_INFO to land on the actual git dir: bare repos
-    // are their own git dir, non-bare repos keep it under <repo>/.git
-    const bare = await isBare(path.join(reposDir, repo));
-    const projectRoot = bare ? reposDir : path.join(reposDir, repo);
-    const gitPath = bare ? `/${repo}.git${rest}` : `/.git${rest}`;
+    // stored as <name>.git are their own git dir (PATH_INFO keeps the .git
+    // suffix), non-bare repos keep it under <repo>/.git
+    const dir = await repoDir(repo);
+    if (!dir) {
+      return res.status(404).json({ error: `unknown repo: ${repo}` });
+    }
+    const bare = await isBare(dir);
+    const projectRoot = bare ? reposDir : dir;
+    const gitPath = bare ? `/${path.basename(dir)}${rest}` : `/.git${rest}`;
 
-    console.log();
     readBody(req)
       .then((body) => runCgi(req, body, projectRoot, gitPath))
       .then((cgi) => {

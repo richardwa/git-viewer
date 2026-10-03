@@ -27,7 +27,7 @@ export type ServerApi = {
   gitLogs: (repo: string, branch: string, lines?: number) => Promise<GitLog[]>;
   gitPull: (repo: string) => Promise<string>;
   gitPush: (repo: string) => Promise<string>;
-  /** repo names served read-only over http (/git/<name>.git) */
+  /** repo names served read-only over http (/<name>.git) */
   publicRepos: () => Promise<string[]>;
 };
 
