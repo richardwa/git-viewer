@@ -1,54 +1,17 @@
-// Read-only git smart-HTTP access for a selected set of repos.
+// Git smart-HTTP access gated by the ACL in acl.yaml.
 //
-// Mount this router at the server root (no prefix); each request is proxied to
-// `git http-backend` running as a CGI subprocess (GIT_PROJECT_ROOT = reposDir).
-// Fetching and cloning work with any stock git client:
-//
-//   git clone http://localhost:5177/myrepo.git
-//
-// Repos are opt-out via the PRIVATE_REPOS env var (comma-separated names):
-// every repo in reposDir is served over HTTP except the listed ones. Pushing
-// is refused: any receive-pack request is rejected before git-http-backend
-// ever runs.
+// Mount this router at the server root (no prefix); each request is checked
+// against the ACL (Basic auth; anonymous when no credentials), then proxied
+// to `git http-backend` running as a CGI subprocess (GIT_PROJECT_ROOT =
+// reposDir). Read access needs an "ro" or "rw" grant, push needs "rw";
+// push policy on top (force-push break-glass) lives in pushcheck/policy.
 import { spawn } from "child_process";
-import fs from "node:fs/promises";
 import path from "node:path";
 import express, { Request, Response, Router } from "express";
-import { reposDir, isValidRepoName, isBare, repoName, repoDir } from "./git";
-
-/** Repo names excluded from read-only HTTP access; empty list means all public. */
-export const privateRepos = (): string[] =>
-  (process.env.PRIVATE_REPOS ?? "")
-    .split(",")
-    .map((name) => name.trim())
-    .filter((name) => name && isValidRepoName(name));
-
-/** Repo names with read-only HTTP access: everything in reposDir minus the private list. */
-export const httpRepos = async (): Promise<string[]> => {
-  let entries: string[] = [];
-  try {
-    entries = await fs.readdir(reposDir);
-  } catch {
-    return [];
-  }
-  const privateList = privateRepos();
-  return [
-    ...new Set(
-      entries
-        .filter((name) => !name.startsWith(".") && isValidRepoName(name))
-        .map((name) => repoName(name))
-        .filter((name) => !privateList.includes(name)),
-    ),
-  ];
-};
-
-export const isHttpRepo = async (repo: string): Promise<boolean> =>
-  (await httpRepos()).includes(repo);
-
-// Only ever serve the read-only upload-pack service.
-const isReadOnly = (service: string | undefined, pathInfo: string): boolean =>
-  !service?.includes("git-receive-pack") &&
-  !pathInfo.includes("git-receive-pack");
+import { reposDir, isValidRepoName, isBare, repoDir } from "./git";
+import { forcePushEnabled } from "./policy";
+import { ensurePushHook } from "./pushcheck";
+import { authenticate, permissionFor } from "./acl";
 
 interface CgiResult {
   status: number;
@@ -73,6 +36,7 @@ const runCgi = async (
   body: Buffer,
   projectRoot: string,
   pathInfo: string,
+  remoteUser: string | null,
 ): Promise<CgiResult | null> => {
   const env: Record<string, string> = {
     GIT_PROJECT_ROOT: projectRoot,
@@ -85,6 +49,9 @@ const runCgi = async (
     CONTENT_TYPE: (req.headers["content-type"] as string) ?? "",
     CONTENT_LENGTH: String(body.length),
     REMOTE_ADDR: req.ip ?? "",
+    REMOTE_USER: remoteUser ?? "",
+    // per-push policy input for the pre-receive hook (see pushcheck.ts)
+    GIT_VIEWER_ALLOW_FORCE: forcePushEnabled() ? "true" : "false",
     GATEWAY_INTERFACE: "CGI/1.1",
     SERVER_PROTOCOL: `HTTP/${req.httpVersion}`,
     SERVER_SOFTWARE: "git-viewer",
@@ -139,7 +106,7 @@ const runCgi = async (
   });
 };
 
-/** Express router serving read-only smart HTTP for all non-private repos. */
+/** Express router serving smart HTTP for repos granted by the ACL. */
 
 export const createHttpRouter = (): Router => {
   const router = express.Router();
@@ -156,10 +123,24 @@ export const createHttpRouter = (): Router => {
     if (!isValidRepoName(repo)) {
       return next();
     }
-    if (!(await isHttpRepo(repo))) {
-      return res
-        .status(404)
-        .json({ error: `repo '${repo}' is not served over http` });
+
+    // ACL: authenticate (Basic), then check the grant for this repo.
+    // Supplied-but-invalid credentials never fall back to anonymous. Git
+    // clients handle 401 + WWW-Authenticate by retrying with credentials, so
+    // unauthenticated denials always challenge instead of a bare 403.
+    const authHeader = req.headers.authorization as string | undefined;
+    const user = await authenticate(authHeader);
+    if (authHeader && !user) {
+      res.setHeader("WWW-Authenticate", 'Basic realm="git-viewer"');
+      return res.status(401).json({ error: "invalid credentials" });
+    }
+    const perm = await permissionFor(user, repo);
+    if (!perm) {
+      if (!user) {
+        res.setHeader("WWW-Authenticate", 'Basic realm="git-viewer"');
+        return res.status(401).json({ error: "authentication required" });
+      }
+      return res.status(403).json({ error: "access denied" });
     }
 
     const service =
@@ -169,10 +150,20 @@ export const createHttpRouter = (): Router => {
         "",
       );
     const pathInfo = `/${repo}.git${rest}`;
-    if (!isReadOnly(service, pathInfo)) {
+    const isPush =
+      service?.includes("git-receive-pack") ||
+      pathInfo.includes("git-receive-pack");
+    if (isPush && perm !== "rw") {
+      if (!user) {
+        // challenge so git clients retry with credentials (a rw user may push)
+        res.setHeader("WWW-Authenticate", 'Basic realm="git-viewer"');
+        return res
+          .status(401)
+          .json({ error: "authentication required for pushing" });
+      }
       return res
         .status(403)
-        .json({ error: "this server is read-only: pushing is not allowed" });
+        .json({ error: "this repo is read-only for your account" });
     }
 
     // http-backend needs PATH_INFO to land on the actual git dir: bare repos
@@ -187,11 +178,24 @@ export const createHttpRouter = (): Router => {
     const gitPath = bare ? `/${path.basename(dir)}${rest}` : `/.git${rest}`;
 
     readBody(req)
-      .then((body) => runCgi(req, body, projectRoot, gitPath))
-      .then((cgi) => {
-        if (!cgi) {
-          return res.status(500).json({ error: "git http-backend failed" });
+      .then(async (body) => {
+        // receive-pack: install/refresh the policy hook before receive-pack runs
+        if (isPush) {
+          const gitDir = bare ? dir : path.join(dir, ".git");
+          await ensurePushHook(gitDir);
         }
+        const cgi = await runCgi(req, body, projectRoot, gitPath, user);
+        return (
+          cgi ?? {
+            status: 500,
+            headers: {},
+            body: Buffer.from(
+              JSON.stringify({ error: "git http-backend failed" }),
+            ),
+          }
+        );
+      })
+      .then((cgi) => {
         res.status(cgi.status);
         for (const [key, value] of Object.entries(cgi.headers)) {
           res.setHeader(key, value);

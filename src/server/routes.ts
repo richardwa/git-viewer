@@ -9,7 +9,8 @@ import {
   gitPull,
   gitPush,
 } from "./resources/git";
-import { httpRepos } from "./resources/git-http";
+import { httpRepos } from "./resources/acl";
+import { forcePushEnabled, setForcePushEnabled } from "./resources/policy";
 
 export const configureRoutes = (app: Server) => {
   // @ts-ignore
@@ -29,6 +30,9 @@ export const configureRoutes = (app: Server) => {
     gitPull: gitPull,
     gitPush: gitPush,
     publicRepos: () => httpRepos(),
+    forcePushEnabled: () => Promise.resolve(forcePushEnabled()),
+    setForcePushEnabled: (value: boolean) =>
+      Promise.resolve(setForcePushEnabled(value)),
   };
   const routes = express.Router();
   Object.entries(serverImpl).forEach(([key, fn]) => {

@@ -27,8 +27,11 @@ export type ServerApi = {
   gitLogs: (repo: string, branch: string, lines?: number) => Promise<GitLog[]>;
   gitPull: (repo: string) => Promise<string>;
   gitPush: (repo: string) => Promise<string>;
-  /** repo names served read-only over http (/<name>.git) */
+  /** repo names reachable over http (/<name>.git) by at least one ACL principal */
   publicRepos: () => Promise<string[]>;
+  /** break-glass: are force pushes currently allowed over http (in-memory, resets on restart) */
+  forcePushEnabled: () => Promise<boolean>;
+  setForcePushEnabled: (value: boolean) => Promise<boolean>;
 };
 
 export const fetchJson = <T extends keyof ServerApi>(

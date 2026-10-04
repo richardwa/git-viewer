@@ -1,5 +1,6 @@
 import { div } from "solid-vanilla";
 import { router } from "./routes";
+import { ForcePushToggle } from "./forcepush";
 
 export const App = () =>
   div()
@@ -7,4 +8,4 @@ export const App = () =>
     .css("max-width", "100rem")
     .css("margin", "0 auto")
     .css("padding", "0.5rem")
-    .inner(router.getRoot());
+    .inner(ForcePushToggle(), router.getRoot());

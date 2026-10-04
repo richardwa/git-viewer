@@ -1,0 +1,31 @@
+# ACL for git smart-HTTP access (http://<host>:5177/<repo>.git).
+#
+# The file is re-read whenever its mtime changes — edits apply immediately,
+# no server restart needed.
+#
+# Grant syntax in `repos` lists:
+#   "<repo name or glob>"       read + write (fetch, clone, push)
+#   "<repo name or glob>:ro"    read-only (fetch, clone)
+# Globs: '*' matches any run of characters. Unmatched repos are DENIED.
+#
+# Passwords: plain text ("secret"), or "sha256:<hex digest>" (preferred):
+# generate with:  echo -n 'secret' | sha256sum
+#
+# Deletions and force pushes are additionally governed by per-repo git
+# config (receive.denyDeletes) and the in-memory force-push toggle in the UI.
+
+users:
+  # fill in real users; each needs a password and at least one grant
+  alice:
+    password: "CHANGE_ME"
+    repos:
+      - "*"                  # read+write on every repo
+  bob:
+    password: "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    repos:
+      - "myrepo:ro"          # read-only on myrepo
+
+anonymous:
+  # grants for unauthenticated requests; empty list = everything requires login
+  repos: []
+  #  - "public-*:ro"
