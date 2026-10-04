@@ -133,6 +133,26 @@ export const listRepos = async (): Promise<RepoInfo[]> => {
     .sort((a, b) => a.name.localeCompare(b.name));
 };
 
+// Create a new bare repo (<name>.git) in the repos dir. The returned message
+// doubles as the error message when creation fails.
+export const createRepo = async (
+  name: string,
+  description = "",
+): Promise<string> => {
+  if (!isValidRepoName(name)) throw new Error(`invalid repo name: ${name}`);
+  const dir = path.join(reposDir, `${name}.git`);
+  if (await dirExists(dir)) throw new Error(`repo already exists: ${name}`);
+  if (await dirExists(path.join(reposDir, name))) {
+    throw new Error(`repo already exists: ${name}`);
+  }
+  await fs.mkdir(reposDir, { recursive: true });
+  await gitcli.runGit(reposDir, ["init", "--bare", dir]);
+  if (description) {
+    await fs.writeFile(path.join(dir, "description"), `${description}\n`);
+  }
+  return `created ${name}`;
+};
+
 export const gitPull = async (repo: string): Promise<string> => {
   const dir = await resolveRepo(repo);
   // bare repos have no worktree to merge into, so fetch instead
@@ -148,6 +168,9 @@ export const getBranches = async (repo: string): Promise<string[]> => {
   if (heads.length) return heads;
   return gitcli.remoteBranchRefs(dir);
 };
+
+export const getRemoteUrl = async (repo: string): Promise<string> =>
+  gitcli.remoteUrl(await resolveRepo(repo));
 
 export const getGitLog = async (
   repo: string,

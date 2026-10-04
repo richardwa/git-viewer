@@ -24,7 +24,11 @@ export type ServerApi = {
   repoInfo: (repo: string) => Promise<RepoInfo | null>;
   readme: (repo: string, branch?: string) => Promise<string>;
   gitBranches: (repo: string) => Promise<string[]>;
+  /** upstream (origin) remote url, "" when the repo has no remote */
+  gitRemoteUrl: (repo: string) => Promise<string>;
   gitLogs: (repo: string, branch: string, lines?: number) => Promise<GitLog[]>;
+  /** create a new bare repo in the repos dir; error message on failure */
+  createRepo: (name: string, description?: string) => Promise<string>;
   gitPull: (repo: string) => Promise<string>;
   gitPush: (repo: string) => Promise<string>;
   /** repo names reachable over http (/<name>.git) by at least one ACL principal */

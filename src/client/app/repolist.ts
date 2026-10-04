@@ -8,7 +8,7 @@ import {
   signal,
   Signal,
 } from "solid-vanilla";
-import { Button, HashLink } from "./components";
+import { Button, HashLink, TextInput } from "./components";
 import { RepoInfo, fetchJson } from "../../common/interface";
 
 const td = () =>
@@ -166,28 +166,66 @@ const headerRow = h("tr").inner(
   ).map(([title, width]) => headCell(title, { width, center: !!width })),
 );
 
+const repos = signal<RepoInfo[]>([]);
+
+const RepoTable = () =>
+  fragment().watch(repos, (node) => {
+    const list = repos.get();
+    if (!list.length) {
+      node.inner(
+        div()
+          .css("color", "#999")
+          .inner("no git repos found (set REPOS_DIR or create ~/repos)"),
+      );
+      return;
+    }
+    node.inner(
+      h("table")
+        .css("border-collapse", "collapse")
+        .css("table-layout", "fixed")
+        .css("width", "100%")
+        .css("min-width", "45rem")
+        .inner(headerRow, ...list.map((repo) => row(signal(repo)))),
+    );
+  });
+
+// Reload the repo list from the server.
+const refresh = async () => repos.set(await fetchJson("repos"), true);
+
+// New-repo form: name + optional description, submitted via the create API.
+const NewRepoForm = () => {
+  const name = signal<string>("");
+  const description = signal<string>("");
+  const create = async () => {
+    try {
+      status.set(await fetchJson("createRepo", name.get(), description.get()));
+      name.set("");
+      description.set("");
+      await refresh();
+    } catch (err) {
+      status.set(`create failed → ${err}`);
+    }
+  };
+  return hbox()
+    .css("gap", "0.5rem")
+    .css("align-items", "center")
+    .inner(
+      TextInput(name)
+        .attr("placeholder", "new repo name")
+        .on("keydown", (event) => {
+          if (event.key === "Enter") create();
+        }),
+      TextInput(description)
+        .attr("placeholder", "description (optional)")
+        .css("flex", "1"),
+      Button().on("click", create).inner("new repo"),
+    );
+};
+
 export const RepoList = () =>
   vbox()
     .css("gap", "1rem")
-    .inner(
-      fragment().do(async (node) => {
-        const repos = await fetchJson("repos");
-        if (!repos.length) {
-          node.inner(
-            div()
-              .css("color", "#999")
-              .inner("no git repos found (set REPOS_DIR or create ~/repos)"),
-          );
-          return;
-        }
-        node.inner(
-          h("table")
-            .css("border-collapse", "collapse")
-            .css("table-layout", "fixed")
-            .css("width", "100%")
-            .css("min-width", "45rem")
-            .inner(headerRow, ...repos.map((repo) => row(signal(repo)))),
-          StatusLine(),
-        );
-      }),
-    );
+    .do(async (node) => {
+      node.inner(NewRepoForm(), RepoTable(), StatusLine());
+      await refresh();
+    });

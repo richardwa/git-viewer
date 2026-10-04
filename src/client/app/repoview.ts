@@ -31,31 +31,35 @@ const logRow = (log: GitLog) =>
     div().inner(log.commitMessage),
   );
 
-const branchesBar = (
+const branchSelect = (
   repo: string,
   selectedBranch: Signal<string | undefined>,
 ) =>
-  hbox()
-    .css("gap", "0.5rem")
-    .css("align-items", "center")
-    .inner(
-      Title().inner("Branches"),
-      h("select")
-        .css("padding", "0.25rem")
-        .on("change", (event) => selectedBranch.set(event.target.value))
-        .do(async (node) => {
-          const sorted = sortBranches(await fetchJson("gitBranches", repo));
-          if (sorted.length && !selectedBranch.get()) {
-            selectedBranch.set(sorted[0]);
-          }
-          node.inner(
-            ...sorted.map((branch) =>
-              h("option").attr("value", branch).inner(branch),
-            ),
-          );
-          (node.el as HTMLSelectElement).value = selectedBranch.get() ?? "";
-        }),
-    );
+  h("select")
+    .css("padding", "0.25rem")
+    .on("change", (event) => selectedBranch.set(event.target.value))
+    .do(async (node) => {
+      const sorted = sortBranches(await fetchJson("gitBranches", repo));
+      if (sorted.length && !selectedBranch.get()) {
+        selectedBranch.set(sorted[0]);
+      }
+      node.inner(
+        ...sorted.map((branch) =>
+          h("option").attr("value", branch).inner(branch),
+        ),
+      );
+      (node.el as HTMLSelectElement).value = selectedBranch.get() ?? "";
+    });
+
+const upstreamUrl = (repo: string) =>
+  h("code")
+    .css("color", "#9cf")
+    .css("font-family", "monospace")
+    .do(async (node) => {
+      const url = await fetchJson("gitRemoteUrl", repo);
+      if (url) node.inner(`upstream: ${url}`);
+      else node.el.style.display = "none";
+    });
 
 const commitLog = (repo: string, selectedBranch: Signal<string | undefined>) =>
   vbox().inner(
@@ -132,14 +136,15 @@ export const RepoView = (name: string, initialBranch?: string) => {
         .css("gap", "1rem")
         .css("align-items", "center")
         .inner(cloneSection(name), forcePushToggle(name)),
-      Title()
-        .css("font-size", "1.4rem")
-        .watch(selectedBranch, (node) =>
-          node.inner(
-            selectedBranch.get() ? `${name} @ ${selectedBranch.get()}` : name,
-          ),
+      hbox()
+        .css("gap", "0.5rem")
+        .css("align-items", "baseline")
+        .inner(
+          Title().css("font-size", "1.4rem").inner(name),
+          Title().css("font-size", "1.4rem").inner("@"),
+          branchSelect(name, selectedBranch),
         ),
-      branchesBar(name, selectedBranch),
+      upstreamUrl(name),
       commitLog(name, selectedBranch),
       readmeSection(name, selectedBranch),
     );

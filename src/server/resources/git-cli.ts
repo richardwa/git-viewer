@@ -60,6 +60,15 @@ export const remotes = (dir: string): Promise<string[]> =>
     .then(splitLines)
     .catch(() => []);
 
+/** URL of the origin remote (or the first configured remote); "" when none. */
+export const remoteUrl = async (dir: string): Promise<string> => {
+  const list = await remotes(dir);
+  const name = list.find((r) => r === "origin") ?? list[0];
+  return name
+    ? runGit(dir, ["config", "--get", `remote.${name}.url`]).catch(() => "")
+    : "";
+};
+
 /** True when the (fully-qualified) ref resolves to a commit. */
 export const refExists = (dir: string, ref: string): Promise<boolean> =>
   runGit(dir, ["rev-parse", "--verify", "-q", ref])
