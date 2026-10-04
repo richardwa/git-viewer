@@ -1,4 +1,5 @@
-# ACL for git smart-HTTP access (http://<host>:5177/<repo>.git).
+# ACL for git smart-HTTP operations only (https://<host>:5177/<repo>.git).
+# The admin UI uses a separate single account: ADMIN_USER / ADMIN_PASSWORD.
 #
 # The file is re-read whenever its mtime changes — edits apply immediately,
 # no server restart needed.

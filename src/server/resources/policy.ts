@@ -2,16 +2,22 @@
 // defaults apply again on every server restart, so a temporarily opened
 // break-glass permission always closes itself.
 //
-// The flag is injected per-request into `git http-backend` as GIT_CONFIG_*
-// env vars (receive.denyNonFastForwards), which outranks repo config: while
-// the toggle is off, force pushes are denied even in repos that enable them.
+// Force pushes are governed per repo: a repo only accepts non-fast-forward
+// updates while it is in the allow set (surfaced as a checkbox in the UI).
+// The flag is passed per-push to the pre-receive hook as GIT_VIEWER_ALLOW_FORCE
+// (see pushcheck.ts / git-http.ts). Regular push (rw) access is NOT governed
+// here — that is purely the ACL (acl.yaml).
 
-let forcePush = false;
+const forcePushAllowed = new Set<string>();
 
-export const forcePushEnabled = (): boolean => forcePush;
+export const forcePushEnabled = (repo: string): boolean =>
+  forcePushAllowed.has(repo);
 
-export const setForcePushEnabled = (value: boolean): boolean => {
-  forcePush = !!value;
-  console.log(`[policy] force push ${forcePush ? "ALLOWED" : "denied"}`);
-  return forcePush;
+export const setForcePushEnabled = (repo: string, value: boolean): boolean => {
+  if (value) forcePushAllowed.add(repo);
+  else forcePushAllowed.delete(repo);
+  console.log(
+    `[policy] force push to '${repo}' ${value ? "ALLOWED" : "denied"}`,
+  );
+  return forcePushAllowed.has(repo);
 };

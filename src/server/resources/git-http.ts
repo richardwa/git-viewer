@@ -37,6 +37,7 @@ const runCgi = async (
   projectRoot: string,
   pathInfo: string,
   remoteUser: string | null,
+  repo: string,
 ): Promise<CgiResult | null> => {
   const env: Record<string, string> = {
     GIT_PROJECT_ROOT: projectRoot,
@@ -51,7 +52,7 @@ const runCgi = async (
     REMOTE_ADDR: req.ip ?? "",
     REMOTE_USER: remoteUser ?? "",
     // per-push policy input for the pre-receive hook (see pushcheck.ts)
-    GIT_VIEWER_ALLOW_FORCE: forcePushEnabled() ? "true" : "false",
+    GIT_VIEWER_ALLOW_FORCE: forcePushEnabled(repo) ? "true" : "false",
     GATEWAY_INTERFACE: "CGI/1.1",
     SERVER_PROTOCOL: `HTTP/${req.httpVersion}`,
     SERVER_SOFTWARE: "git-viewer",
@@ -165,7 +166,6 @@ export const createHttpRouter = (): Router => {
         .status(403)
         .json({ error: "this repo is read-only for your account" });
     }
-
     // http-backend needs PATH_INFO to land on the actual git dir: bare repos
     // stored as <name>.git are their own git dir (PATH_INFO keeps the .git
     // suffix), non-bare repos keep it under <repo>/.git
@@ -184,7 +184,7 @@ export const createHttpRouter = (): Router => {
           const gitDir = bare ? dir : path.join(dir, ".git");
           await ensurePushHook(gitDir);
         }
-        const cgi = await runCgi(req, body, projectRoot, gitPath, user);
+        const cgi = await runCgi(req, body, projectRoot, gitPath, user, repo);
         return (
           cgi ?? {
             status: 500,

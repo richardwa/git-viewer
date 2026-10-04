@@ -29,9 +29,9 @@ export type ServerApi = {
   gitPush: (repo: string) => Promise<string>;
   /** repo names reachable over http (/<name>.git) by at least one ACL principal */
   publicRepos: () => Promise<string[]>;
-  /** break-glass: are force pushes currently allowed over http (in-memory, resets on restart) */
-  forcePushEnabled: () => Promise<boolean>;
-  setForcePushEnabled: (value: boolean) => Promise<boolean>;
+  /** break-glass per-repo: are force pushes currently allowed (in-memory, resets on restart) */
+  forcePushEnabled: (repo: string) => Promise<boolean>;
+  setForcePushEnabled: (repo: string, value: boolean) => Promise<boolean>;
 };
 
 export const fetchJson = <T extends keyof ServerApi>(

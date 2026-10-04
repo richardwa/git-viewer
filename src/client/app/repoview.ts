@@ -8,7 +8,7 @@ import {
   signal,
   Signal,
 } from "solid-vanilla";
-import { HashLink, Panel, Title } from "./components";
+import { HashLink, Panel, Title, Button } from "./components";
 import { GitLog, fetchJson } from "../../common/interface";
 import { formatDate } from "../../common/util";
 import { Markdown } from "./markdown";
@@ -100,6 +100,27 @@ const cloneSection = (repo: string) =>
     .css("color", "#9cf")
     .css("font-family", "monospace");
 
+/** Break-glass checkbox: force pushes to this repo over http (in-memory, resets on restart). */
+const forcePushToggle = (repo: string) => {
+  const on = signal(false);
+  return hbox()
+    .css("gap", "0.5rem")
+    .css("align-items", "center")
+    .do(async (node) => on.set(await fetchJson("forcePushEnabled", repo)))
+    .watch(on, (node) =>
+      node.inner(
+        Button()
+          .css("cursor", "pointer")
+          .css("background-color", on.get() ? "#a33" : "#424242")
+          .css("border", `1px solid ${on.get() ? "#c55" : "#666"}`)
+          .on("click", async () =>
+            on.set(await fetchJson("setForcePushEnabled", repo, !on.get())),
+          )
+          .inner(on.get() ? "force push: allowed" : "force push: denied"),
+      ),
+    );
+};
+
 export const RepoView = (name: string, initialBranch?: string) => {
   const selectedBranch = signal<string | undefined>(initialBranch);
 
@@ -107,7 +128,10 @@ export const RepoView = (name: string, initialBranch?: string) => {
     .css("gap", "1rem")
     .inner(
       HashLink("#/").inner("← all repos"),
-      cloneSection(name),
+      hbox()
+        .css("gap", "1rem")
+        .css("align-items", "center")
+        .inner(cloneSection(name), forcePushToggle(name)),
       Title()
         .css("font-size", "1.4rem")
         .watch(selectedBranch, (node) =>
