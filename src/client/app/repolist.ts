@@ -163,7 +163,16 @@ const headerRow = h("tr").inner(
       ["Pull", "5rem"],
       ["Notes", undefined],
     ] as [string, string | undefined][]
-  ).map(([title, width]) => headCell(title, { width, center: !!width })),
+  )
+    .map(
+      ([title, width]) =>
+        [title, width, title !== "Repositories" && !!width] as [
+          string,
+          string | undefined,
+          boolean,
+        ],
+    )
+    .map(([title, width, center]) => headCell(title, { width, center })),
 );
 
 const repos = signal<RepoInfo[]>([]);
