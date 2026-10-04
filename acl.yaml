@@ -4,14 +4,15 @@
 # The file is re-read whenever its mtime changes — edits apply immediately,
 # no server restart needed.
 #
-# Repos are PUBLIC by default: anyone can read (fetch/clone) them anonymously.
-# List repos under `private` (exact names) to require login.
+# Access model (public by default):
+#   - Repos are PUBLIC unless listed under `private`:
+#       anonymous:  read-only (fetch/clone)
+#       logged in:  read + write (fetch, clone, push)
+#   - Repos in `private` are accessible only by `owner` (you).
 #
-# Push always requires a user with an "rw" grant, public or not.
-#
-# Grant syntax in `repos` lists:
-#   "<repo name or glob>"       read + write (fetch, clone, push)
-#   "<repo name or glob>:ro"    read-only (fetch, clone)
+# Grant syntax (only needed for the optional extras below):
+#   "<repo name or glob>"       read + write
+#   "<repo name or glob>:ro"    read-only
 # Globs: '*' matches any run of characters.
 #
 # Passwords: plain text ("secret"), or "sha256:<hex digest>" (preferred):
@@ -21,22 +22,25 @@
 # in the admin UI (resets on restart). Deletion policy stays with per-repo
 # git config (receive.denyDeletes).
 
-# repos that are NOT publicly readable; exact repo names
+# your user name; has read+write on every repo, including private ones
+owner: me
+
+# repos that are NOT public; exact repo names, only the owner has access
 private:
   - secret-one
   - secret-two
   # - "internal"
 
 users:
-  # fill in real users; each needs a password and at least one grant
+  # any logged-in user gets read+write on all public repos —
+  # only a password is required, no `repos` entry needed
   alice:
     password: "CHANGE_ME"
-    repos:
-      - "*"                  # read+write on every repo (incl. private ones)
   bob:
     password: "sha256:0000000000000000000000000000000000000000000000000000000000000000"
-    repos:
-      - "myrepo:ro"          # read-only on myrepo
+    # optional: extra grants for a user, e.g. share a private repo
+    # repos:
+    #   - "internal-*:ro"
 
 anonymous:
   # optional extra grants for unauthenticated requests, e.g. anonymous

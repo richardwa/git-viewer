@@ -3,22 +3,22 @@
 // edits apply immediately without a server restart.
 //
 // Access model (public by default):
-//   private:                    # exact repo names that are NOT publicly readable
+//   owner: me                   # has rw on ALL repos, incl. private ones
+//   private:                    # exact repo names only the owner can access
 //     - secret-one
 //     - secret-two
-//   users:
+//   users:                      # any logged-in user: rw on public repos
 //     <name>:
 //       password: "secret"      # plain text, or "sha256:<hex digest>"
-//       repos:                  # grant list; bare name = read+write
-//         - "*"                 # rw on every repo (incl. private ones)
-//         - "other:ro"          # read-only access to 'other'
+//       repos:                  # OPTIONAL extra grants (e.g. private repos)
+//         - "internal-*:ro"
 //   anonymous:                  # optional extra grants for unauthenticated
 //     repos:                    # requests (e.g. rw on a public repo)
 //       - "deploy-*:rw"
 //
-// Public repos (not in the `private` list) are readable by anyone (anonymous
-// read-only). Private repos are only accessible to users with a matching
-// grant. Grant patterns are globs: '*' matches any run of characters.
+// Public repos (not in the `private` list): anonymous read-only, any logged-in
+// user read+write. Private repos: owner only, plus explicit per-user grants.
+// Grant patterns are globs: '*' matches any run of characters.
 // Read (fetch/clone) needs "ro" or "rw"; push needs "rw".
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
@@ -30,6 +30,7 @@ export type Perm = "ro" | "rw";
 
 type UserConfig = { password?: string; repos?: string[] };
 type AclConfig = {
+  owner?: string;
   private?: string[];
   users?: Record<string, UserConfig>;
   anonymous?: { repos?: string[] };
@@ -118,23 +119,36 @@ const isPrivateRepo = async (repo: string): Promise<boolean> => {
   return (privateList ?? []).some((entry) => entry.trim() === repo);
 };
 
+/** Explicit extra grants declared for a user (optional). */
+const userGrants = async (user: string): Promise<string[]> => {
+  const { users } = await loadAcl();
+  return users?.[user]?.repos ?? [];
+};
+
 /** Permission for a repo (user may be null = anonymous); null when denied.
- * Public repos: anonymous read-only. Private repos: grants only. */
+ * Public repos: anonymous read-only, any logged-in user read+write.
+ * Private repos: owner (always rw) plus explicit grants only. */
 export const permissionFor = async (
   user: string | null,
   repo: string,
 ): Promise<Perm | null> => {
   const acl = await loadAcl();
   if (user) {
-    const cfg = acl.users?.[user];
-    return cfg?.repos ? grantsMatch(cfg.repos, repo) : null;
+    if (user === acl.owner) return "rw";
+    if (!(await isPrivateRepo(repo))) return "rw"; // public: any user can push
+    const grants = [
+      ...(await userGrants(user)),
+      ...(acl.anonymous?.repos ?? []),
+    ];
+    return grants.length ? grantsMatch(grants, repo) : null;
   }
   if (!(await isPrivateRepo(repo))) return "ro"; // public by default
   return acl.anonymous?.repos ? grantsMatch(acl.anonymous.repos, repo) : null;
 };
 
 /** Repos reachable over HTTP by at least one principal (for UI hints): all
- * public repos plus any repo covered by a user or anonymous grant. */
+ * public repos plus any repo covered by the owner, a user or anonymous
+ * grant. */
 export const httpRepos = async (): Promise<string[]> => {
   const acl = await loadAcl();
   let entries: string[] = [];
@@ -153,7 +167,9 @@ export const httpRepos = async (): Promise<string[]> => {
   const flags = await Promise.all(
     repos.map(
       async (repo) =>
-        !(await isPrivateRepo(repo)) || grantsMatch(grants, repo) !== null,
+        !(await isPrivateRepo(repo)) ||
+        acl.owner != null ||
+        grantsMatch(grants, repo) !== null,
     ),
   );
   return repos.filter((_, i) => flags[i]);
