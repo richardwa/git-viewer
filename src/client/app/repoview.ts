@@ -55,12 +55,14 @@ const branchSelect = (
     });
 
 const upstreamUrl = (repo: string) =>
-  h("code")
+  hbox()
+    .css("gap", "0.35rem")
+    .css("align-items", "center")
     .css("color", "#9cf")
     .css("font-family", "monospace")
     .do(async (node) => {
       const url = await fetchJson("gitRemoteUrl", repo);
-      if (url) node.inner(`upstream: ${url}`);
+      if (url) node.inner(h("code").inner(`upstream: ${url}`));
       else node.el.style.display = "none";
     });
 
@@ -158,8 +160,8 @@ export const RepoView = (name: string, initialBranch?: string) => {
     .inner(
       hbox()
         .css("justify-content", "center")
+        .css("align-items", "center")
         .css("gap", "0.35rem")
-        .css("align-items", "baseline")
         .inner(
           Title()
             .css("font-size", "1.4rem")
