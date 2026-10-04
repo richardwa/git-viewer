@@ -11,27 +11,17 @@ import {
 import { Button, HashLink, TextInput } from "./components";
 import { RepoInfo, fetchJson } from "../../common/interface";
 
-const td = () =>
-  h("td")
-    .css("padding", "0.4rem 0.75rem")
-    .css("border-bottom", "1px solid #555")
-    .css("vertical-align", "top")
-    .css("max-width", "16rem");
+const muted = () => "var(--pico-muted-color)";
+
+const td = (width?: string) => {
+  const cell = h("td").css("vertical-align", "middle");
+  return width ? cell.css("width", width).css("max-width", width) : cell;
+};
 
 const centerCell = (width: string, ...children: (BaseNode | string)[]) =>
-  td()
-    .css("text-align", "center")
-    .css("width", width)
-    .css("max-width", width)
+  td(width)
+    .css("text-align", "right")
     .inner(...children);
-
-const headCell = (text: string, opts?: { width?: string; center?: boolean }) =>
-  h("th")
-    .css("text-align", opts?.center ? "center" : "left")
-    .css("padding", "0.4rem 0.75rem")
-    .css("border-bottom", "1px solid #888")
-    .css("width", opts?.width ?? "auto")
-    .inner(text);
 
 const truncate = () =>
   div()
@@ -40,77 +30,56 @@ const truncate = () =>
     .css("text-overflow", "ellipsis");
 
 const repoCell = (repo: RepoInfo) =>
-  td()
-    .css("width", "16rem")
-    .css("overflow", "hidden")
-    .inner(
-      vbox()
-        .css("gap", "0.15rem")
-        .inner(
-          truncate().inner(
-            HashLink(`#/repo/${repo.name}`)
-              .css("font-weight", "bold")
-              .inner(repo.name),
-          ),
-          repo.description
-            ? truncate()
-                .css("color", "#999")
-                .css("font-size", "0.85rem")
-                .inner(repo.description)
-            : fragment(),
-        ),
-    );
-
-const commitsCell = (repo: RepoInfo) => {
-  if (repo.ahead === null || repo.behind === null) {
-    return centerCell("7rem", div().css("color", "#999").inner("n/a"));
-  }
-  return centerCell(
-    "7rem",
-    hbox()
-      .css("gap", "0.5rem")
-      .css("justify-content", "center")
+  td().inner(
+    vbox()
+      .css("gap", "0.15rem")
       .inner(
-        h("span").css("color", "#7bc47f").inner(`↑${repo.ahead}`),
-        h("span").css("color", "#e57373").inner(`↓${repo.behind}`),
+        truncate().inner(
+          HashLink(`#/repo/${repo.name}`).inner(repo.name),
+          repo.description
+            ? h("span").css("color", muted()).inner(` — ${repo.description}`)
+            : "",
+        ),
+        repo.notes
+          ? truncate().css("color", muted()).inner(repo.notes)
+          : fragment(),
       ),
   );
-};
 
-const notesCell = (repo: RepoInfo) =>
-  td()
-    .css("min-width", "12rem")
-    .css("max-width", "none")
-    .inner(
-      (repo.notes ? div() : div().css("color", "#999"))
-        .css("white-space", "nowrap")
-        .css("overflow", "hidden")
-        .css("text-overflow", "ellipsis")
-        .inner(repo.notes ?? "—"),
-    );
-
+// Push/pull buttons carry the arrow + count (Pico's semantic ins/del
+// colors); "—" when there is no upstream to compare against.
 const pushCell = (repo: RepoInfo, run: (repo: string) => Promise<void>) =>
   centerCell(
-    "5rem",
-    repo.ahead
-      ? Button()
+    "10.5rem",
+    repo.ahead === null
+      ? div().css("color", muted()).inner("—")
+      : Button()
+          .css("margin", "0")
+          .css("width", "10rem")
           .on("click", () => run(repo.name))
-          .inner("push")
-      : repo.ahead === null
-        ? div().css("color", "#999").inner("—")
-        : fragment(),
+          .inner(
+            h("span")
+              .css("color", "var(--pico-ins-color)")
+              .inner(`↑${repo.ahead}`),
+            " push",
+          ),
   );
 
 const pullCell = (repo: RepoInfo, run: (repo: string) => Promise<void>) =>
   centerCell(
-    "5rem",
-    repo.behind
-      ? Button()
+    "10.5rem",
+    repo.behind === null
+      ? div().css("color", muted()).inner("—")
+      : Button()
+          .css("margin", "0")
+          .css("width", "10rem")
           .on("click", () => run(repo.name))
-          .inner("pull")
-      : repo.behind === null
-        ? div().css("color", "#999").inner("—")
-        : fragment(),
+          .inner(
+            h("span")
+              .css("color", "var(--pico-del-color)")
+              .inner(`↓${repo.behind}`),
+            " pull",
+          ),
   );
 
 const status = signal<string>("");
@@ -119,7 +88,7 @@ const StatusLine = () =>
   div().watch(status, (node) =>
     node.inner(
       status.get()
-        ? div().css("color", "#bbb").inner(status.get())
+        ? div().css("color", muted()).inner(status.get())
         : fragment(),
     ),
   );
@@ -148,31 +117,15 @@ const row = (info: Signal<RepoInfo>) =>
     node.inner(
       repoCell(repo),
       pushCell(repo, () => runGit(info, "push")),
-      commitsCell(repo),
       pullCell(repo, () => runGit(info, "pull")),
-      notesCell(repo),
     );
   });
 
+// column titles; the push/pull columns are self-explanatory, no title
 const headerRow = h("tr").inner(
-  ...(
-    [
-      ["Repositories", "16rem"],
-      ["Push", "5rem"],
-      ["Commits", "7rem"],
-      ["Pull", "5rem"],
-      ["Notes", undefined],
-    ] as [string, string | undefined][]
-  )
-    .map(
-      ([title, width]) =>
-        [title, width, title !== "Repositories" && !!width] as [
-          string,
-          string | undefined,
-          boolean,
-        ],
-    )
-    .map(([title, width, center]) => headCell(title, { width, center })),
+  h("th").css("text-align", "left").css("width", "auto").inner("Repositories"),
+  h("th").css("width", "10.5rem"),
+  h("th").css("width", "10.5rem"),
 );
 
 const repos = signal<RepoInfo[]>([]);
@@ -183,17 +136,17 @@ const RepoTable = () =>
     if (!list.length) {
       node.inner(
         div()
-          .css("color", "#999")
+          .css("color", muted())
           .inner("no git repos found (set REPOS_DIR or create ~/repos)"),
       );
       return;
     }
+    // Pico styles the table (borders, spacing); only layout here
     node.inner(
       h("table")
-        .css("border-collapse", "collapse")
         .css("table-layout", "fixed")
         .css("width", "100%")
-        .css("min-width", "45rem")
+        .css("min-width", "48rem")
         .inner(headerRow, ...list.map((repo) => row(signal(repo)))),
     );
   });
@@ -220,32 +173,34 @@ export const NewRepoForm = () => {
       status.set(`create failed → ${err}`);
     }
   };
-  const body = vbox()
-    .css("gap", "0.75rem")
-    .css("min-width", "20rem")
+  // Pico styles <dialog> and <article>; wrap the body in an article card
+  const body = h("article")
+    .css("margin", "0")
     .inner(
-      div().css("font-weight", "bold").inner("new repo"),
-      TextInput(name)
-        .attr("placeholder", "repo name")
-        .attr("autofocus", "")
-        .on("keydown", (event) => {
-          if (event.key === "Enter") create();
-        }),
-      hbox()
-        .css("gap", "0.5rem")
-        .css("justify-content", "flex-end")
+      vbox()
+        .css("gap", "0.75rem")
+        .css("min-width", "20rem")
         .inner(
-          Button().on("click", close).inner("cancel"),
-          Button().on("click", create).inner("create"),
+          h("strong").inner("new repo"),
+          TextInput(name)
+            .attr("placeholder", "repo name")
+            .attr("autofocus", "")
+            .on("keydown", (event) => {
+              if (event.key === "Enter") create();
+            }),
+          hbox()
+            .css("gap", "0.5rem")
+            .css("justify-content", "flex-end")
+            .inner(
+              Button().on("click", close).inner("cancel"),
+              Button()
+                .attr("type", "submit")
+                .on("click", create)
+                .inner("create"),
+            ),
         ),
     );
-  dlg
-    .css("border", "1px solid #666")
-    .css("border-radius", "0.35rem")
-    .css("padding", "1rem")
-    .css("background-color", "#2a2a2a")
-    .css("color", "inherit")
-    .inner(body);
+  dlg.inner(body);
   return fragment().inner(
     dlg,
     Button()

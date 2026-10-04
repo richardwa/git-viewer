@@ -4,10 +4,3 @@
     "SFMono-Regular", "Cascadia Mono", "JetBrains Mono", "Fira Code", Menlo,
     Consolas, "DejaVu Sans Mono", monospace;
 }
-
-body,
-html {
-  margin: 0;
-  padding: 0;
-  font-family: var(--pico-font-family);
-}

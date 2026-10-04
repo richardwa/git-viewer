@@ -11,8 +11,7 @@ import {
   gitPush,
   createRepo,
 } from "./resources/git";
-import { httpRepos } from "./resources/acl";
-import crypto from "node:crypto";
+import { httpRepos, authenticate } from "./resources/acl";
 import { forcePushEnabled, setForcePushEnabled } from "./resources/policy";
 
 export const configureRoutes = (app: Server) => {
@@ -24,26 +23,12 @@ export const configureRoutes = (app: Server) => {
   };
   app.use(logger);
 
-  // Admin UI/API: one account from ADMIN_USER/ADMIN_PASSWORD env vars
-  // (independent of the git ACL). Fail-closed when unset; browsers answer the
-  // 401 challenge with a native login dialog and then attach the credentials
-  // to every same-origin request automatically.
-  const authOk = (header: string | undefined): boolean => {
-    const adminUser = process.env.ADMIN_USER;
-    const adminPassword = process.env.ADMIN_PASSWORD;
-    if (!(adminUser && adminPassword && header?.startsWith("Basic "))) {
-      return false;
-    }
-    const decoded = Buffer.from(header.slice(6), "base64").toString();
-    const sep = decoded.indexOf(":");
-    if (sep === -1) return false;
-    const sha = (v: string) => crypto.createHash("sha256").update(v).digest();
-    const [name, password] = [decoded.slice(0, sep), decoded.slice(sep + 1)];
-    return (
-      crypto.timingSafeEqual(sha(adminUser), sha(name)) &&
-      crypto.timingSafeEqual(sha(adminPassword), sha(password))
-    );
-  };
+  // Admin UI/API: any ACL user may sign in (the `admin` entry names the
+  // account with full git access). Fail-closed when no ACL is loaded; browsers
+  // answer the 401 challenge with a native login dialog and then attach the
+  // credentials to every same-origin request automatically.
+  const authOk = async (header: string | undefined): Promise<boolean> =>
+    (await authenticate(header)) !== null;
 
   // Anonymous-allowed endpoints, mounted before the auth middleware.
   // /repos: names only for anonymous visitors (full details when authed);
@@ -53,7 +38,7 @@ export const configureRoutes = (app: Server) => {
   anonRoutes.post(
     "/repos",
     async (req: Request, res: Response, next: NextFunction) => {
-      if (authOk(req.headers.authorization as string | undefined))
+      if (await authOk(req.headers.authorization as string | undefined))
         return next();
       const infos = await listRepos();
       res.json(
@@ -70,7 +55,7 @@ export const configureRoutes = (app: Server) => {
   anonRoutes.post(
     "/createRepo",
     async (req: Request, res: Response, next: NextFunction) => {
-      if (authOk(req.headers.authorization as string | undefined))
+      if (await authOk(req.headers.authorization as string | undefined))
         return next();
       const [name] = (req as any).body ?? [];
       try {
@@ -84,7 +69,7 @@ export const configureRoutes = (app: Server) => {
 
   app.use(apiPath, async (req: Request, res: Response, next: NextFunction) => {
     const header = req.headers.authorization as string | undefined;
-    if (!authOk(header)) {
+    if (!(await authOk(header))) {
       res.setHeader("WWW-Authenticate", 'Basic realm="git-viewer admin"');
       return res.status(401).json({ error: "authentication required" });
     }

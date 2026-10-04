@@ -3,8 +3,8 @@
 // edits apply immediately without a server restart.
 //
 // Access model (public by default):
-//   owner: me                   # has rw on ALL repos, incl. private ones
-//   private:                    # exact repo names only the owner can access
+//   admin: me                   # has rw on ALL repos, incl. private ones
+//   private:                    # exact repo names only the admin can access
 //     - secret-one
 //     - secret-two
 //   users:                      # any logged-in user: rw on public repos
@@ -17,7 +17,7 @@
 //       - "deploy-*:rw"
 //
 // Public repos (not in the `private` list): anonymous read-only, any logged-in
-// user read+write. Private repos: owner only, plus explicit per-user grants.
+// user read+write. Private repos: admin only, plus explicit per-user grants.
 // Grant patterns are globs: '*' matches any run of characters.
 // Read (fetch/clone) needs "ro" or "rw"; push needs "rw".
 import crypto from "node:crypto";
@@ -30,7 +30,7 @@ export type Perm = "ro" | "rw";
 
 type UserConfig = { password?: string; repos?: string[] };
 type AclConfig = {
-  owner?: string;
+  admin?: string;
   private?: string[];
   users?: Record<string, UserConfig>;
   anonymous?: { repos?: string[] };
@@ -113,6 +113,10 @@ export const authenticate = async (
   return cfg && passwordMatches(cfg.password, password) ? name : null;
 };
 
+/** Name of the admin account (the ACL "admin" user), or null when unset. */
+export const adminName = async (): Promise<string | null> =>
+  (await loadAcl()).admin ?? null;
+
 /** True when the repo is in the `private` list (exact names, public by default). */
 const isPrivateRepo = async (repo: string): Promise<boolean> => {
   const { private: privateList } = await loadAcl();
@@ -127,14 +131,14 @@ const userGrants = async (user: string): Promise<string[]> => {
 
 /** Permission for a repo (user may be null = anonymous); null when denied.
  * Public repos: anonymous read-only, any logged-in user read+write.
- * Private repos: owner (always rw) plus explicit grants only. */
+ * Private repos: admin (always rw) plus explicit grants only. */
 export const permissionFor = async (
   user: string | null,
   repo: string,
 ): Promise<Perm | null> => {
   const acl = await loadAcl();
   if (user) {
-    if (user === acl.owner) return "rw";
+    if (user === acl.admin) return "rw";
     if (!(await isPrivateRepo(repo))) return "rw"; // public: any user can push
     const grants = [
       ...(await userGrants(user)),
@@ -147,7 +151,7 @@ export const permissionFor = async (
 };
 
 /** Repos reachable over HTTP by at least one principal (for UI hints): all
- * public repos plus any repo covered by the owner, a user or anonymous
+ * public repos plus any repo covered by the admin, a user or anonymous
  * grant. */
 export const httpRepos = async (): Promise<string[]> => {
   const acl = await loadAcl();
@@ -168,7 +172,7 @@ export const httpRepos = async (): Promise<string[]> => {
     repos.map(
       async (repo) =>
         !(await isPrivateRepo(repo)) ||
-        acl.owner != null ||
+        acl.admin != null ||
         grantsMatch(grants, repo) !== null,
     ),
   );

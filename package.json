@@ -9,6 +9,7 @@
     "prebuild": "bun run format",
     "build": "tsc && vite build",
     "start": "bun src/server/server.ts",
+    "samples": "bun scripts/sample-repos.ts",
     "test": "bun test src/server"
   },
   "devDependencies": {

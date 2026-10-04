@@ -1,24 +1,21 @@
-import { h, RNode, Signal } from "solid-vanilla";
+import { h, Signal } from "solid-vanilla";
 
-export const Title = () => h("div").css("font-weight", "bold");
+export const Title = () => h("strong");
 
-export const Panel = () =>
-  h("div")
-    .css("border-radius", "5px")
-    .css("padding", "0.5rem")
-    .css("background-color", "#424242");
+// Pico <article> = card/panel styling
+export const Panel = () => h("article").css("margin", "0");
 
-export const Button = () =>
-  h("button").attr("type", "button").css("padding", "0.25rem");
+// Pico styles <button> natively; "outline"/"contrast" classes via .cn()
+export const Button = () => h("button").attr("type", "button");
 
 export const NavLink = (href: string) =>
   h("a").attr("href", href).attr("target", "_blank");
 
-export const ClickLink = () =>
-  h("a").css("cursor", "pointer").css("color", "#4d9fff");
+// Pico styles <a> with the primary color; cursor for JS-driven links only
+export const ClickLink = () => h("a").css("cursor", "pointer");
 
 export const HashLink = (href: string) =>
-  h("a").attr("href", href).css("cursor", "pointer").css("color", "#4d9fff");
+  h("a").attr("href", href).css("cursor", "pointer");
 
 export const TextInput = (val: Signal<string>) =>
   h("input")

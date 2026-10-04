@@ -1,5 +1,5 @@
 # ACL for git smart-HTTP operations only (https://<host>:5177/<repo>.git).
-# The admin UI uses a separate single account: ADMIN_USER / ADMIN_PASSWORD.
+# The admin UI signs in as an ACL user (see `admin` below).
 #
 # The file is re-read whenever its mtime changes — edits apply immediately,
 # no server restart needed.
@@ -8,7 +8,7 @@
 #   - Repos are PUBLIC unless listed under `private`:
 #       anonymous:  read-only (fetch/clone)
 #       logged in:  read + write (fetch, clone, push)
-#   - Repos in `private` are accessible only by `owner` (you).
+#   - Repos in `private` are accessible only by `admin` (you).
 #
 # Grant syntax (only needed for the optional extras below):
 #   "<repo name or glob>"       read + write
@@ -23,9 +23,9 @@
 # git config (receive.denyDeletes).
 
 # your user name; has read+write on every repo, including private ones
-owner: me
+admin: alice
 
-# repos that are NOT public; exact repo names, only the owner has access
+# repos that are NOT public; exact repo names, only the admin has access
 private:
   - secret-one
   - secret-two
@@ -35,7 +35,7 @@ users:
   # any logged-in user gets read+write on all public repos —
   # only a password is required, no `repos` entry needed
   alice:
-    password: "CHANGE_ME"
+    password: "alice"
   bob:
     password: "sha256:0000000000000000000000000000000000000000000000000000000000000000"
     # optional: extra grants for a user, e.g. share a private repo
