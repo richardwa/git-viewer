@@ -4,29 +4,42 @@
 # The file is re-read whenever its mtime changes — edits apply immediately,
 # no server restart needed.
 #
+# Repos are PUBLIC by default: anyone can read (fetch/clone) them anonymously.
+# List repos under `private` (exact names) to require login.
+#
+# Push always requires a user with an "rw" grant, public or not.
+#
 # Grant syntax in `repos` lists:
 #   "<repo name or glob>"       read + write (fetch, clone, push)
 #   "<repo name or glob>:ro"    read-only (fetch, clone)
-# Globs: '*' matches any run of characters. Unmatched repos are DENIED.
+# Globs: '*' matches any run of characters.
 #
 # Passwords: plain text ("secret"), or "sha256:<hex digest>" (preferred):
 # generate with:  echo -n 'secret' | sha256sum
 #
-# Deletions and force pushes are additionally governed by per-repo git
-# config (receive.denyDeletes) and the in-memory force-push toggle in the UI.
+# Force pushes are additionally governed by the per-repo in-memory toggle
+# in the admin UI (resets on restart). Deletion policy stays with per-repo
+# git config (receive.denyDeletes).
+
+# repos that are NOT publicly readable; exact repo names
+private:
+  - secret-one
+  - secret-two
+  # - "internal"
 
 users:
   # fill in real users; each needs a password and at least one grant
   alice:
     password: "CHANGE_ME"
     repos:
-      - "*"                  # read+write on every repo
+      - "*"                  # read+write on every repo (incl. private ones)
   bob:
     password: "sha256:0000000000000000000000000000000000000000000000000000000000000000"
     repos:
       - "myrepo:ro"          # read-only on myrepo
 
 anonymous:
-  # grants for unauthenticated requests; empty list = everything requires login
+  # optional extra grants for unauthenticated requests, e.g. anonymous
+  # pushes to a public repo (unusual); public read access needs no entry
   repos: []
-  #  - "public-*:ro"
+  #  - "deploy-*:rw"

@@ -2,18 +2,23 @@
 // path in $ACL_FILE). The file is re-read whenever its mtime changes, so
 // edits apply immediately without a server restart.
 //
-// Access model (default deny):
+// Access model (public by default):
+//   private:                    # exact repo names that are NOT publicly readable
+//     - secret-one
+//     - secret-two
 //   users:
 //     <name>:
-//       password: "secret"          # plain text, or "sha256:<hex digest>"
-//       repos:                      # grant list; bare name = read+write
-//         - "*"                     # rw on every repo
-//         - "other:ro"              # read-only access to 'other'
-//   anonymous:                      # applies to unauthenticated requests
-//     repos:
-//       - "public-*:ro"
+//       password: "secret"      # plain text, or "sha256:<hex digest>"
+//       repos:                  # grant list; bare name = read+write
+//         - "*"                 # rw on every repo (incl. private ones)
+//         - "other:ro"          # read-only access to 'other'
+//   anonymous:                  # optional extra grants for unauthenticated
+//     repos:                    # requests (e.g. rw on a public repo)
+//       - "deploy-*:rw"
 //
-// Grant patterns are globs: '*' matches any run of characters.
+// Public repos (not in the `private` list) are readable by anyone (anonymous
+// read-only). Private repos are only accessible to users with a matching
+// grant. Grant patterns are globs: '*' matches any run of characters.
 // Read (fetch/clone) needs "ro" or "rw"; push needs "rw".
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
@@ -25,6 +30,7 @@ export type Perm = "ro" | "rw";
 
 type UserConfig = { password?: string; repos?: string[] };
 type AclConfig = {
+  private?: string[];
   users?: Record<string, UserConfig>;
   anonymous?: { repos?: string[] };
 };
@@ -106,7 +112,14 @@ export const authenticate = async (
   return cfg && passwordMatches(cfg.password, password) ? name : null;
 };
 
-/** Permission for a repo (user may be null = anonymous); null when denied. */
+/** True when the repo is in the `private` list (exact names, public by default). */
+const isPrivateRepo = async (repo: string): Promise<boolean> => {
+  const { private: privateList } = await loadAcl();
+  return (privateList ?? []).some((entry) => entry.trim() === repo);
+};
+
+/** Permission for a repo (user may be null = anonymous); null when denied.
+ * Public repos: anonymous read-only. Private repos: grants only. */
 export const permissionFor = async (
   user: string | null,
   repo: string,
@@ -116,10 +129,12 @@ export const permissionFor = async (
     const cfg = acl.users?.[user];
     return cfg?.repos ? grantsMatch(cfg.repos, repo) : null;
   }
+  if (!(await isPrivateRepo(repo))) return "ro"; // public by default
   return acl.anonymous?.repos ? grantsMatch(acl.anonymous.repos, repo) : null;
 };
 
-/** Repos reachable over HTTP by at least one principal (for UI hints). */
+/** Repos reachable over HTTP by at least one principal (for UI hints): all
+ * public repos plus any repo covered by a user or anonymous grant. */
 export const httpRepos = async (): Promise<string[]> => {
   const acl = await loadAcl();
   let entries: string[] = [];
@@ -135,5 +150,11 @@ export const httpRepos = async (): Promise<string[]> => {
     ...(acl.anonymous?.repos ?? []),
     ...Object.values(acl.users ?? {}).flatMap((user) => user.repos ?? []),
   ];
-  return repos.filter((repo) => grantsMatch(grants, repo));
+  const flags = await Promise.all(
+    repos.map(
+      async (repo) =>
+        !(await isPrivateRepo(repo)) || grantsMatch(grants, repo) !== null,
+    ),
+  );
+  return repos.filter((_, i) => flags[i]);
 };

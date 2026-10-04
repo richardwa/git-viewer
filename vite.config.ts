@@ -3,7 +3,6 @@ import path from "path";
 import { defineConfig, ViteDevServer } from "vite";
 import express from "express";
 import { configureRoutes } from "./src/server/routes";
-import { ensureTlsFiles } from "./src/server/resources/tls";
 
 const expressPlugin = () => ({
   name: "vite-plugin-express",
@@ -14,9 +13,15 @@ const expressPlugin = () => ({
   },
 });
 
-// HTTPS everywhere: the dev server uses the same TLS material as production
-// (TLS_CERT/TLS_KEY, or a generated self-signed pair).
-const tls = ensureTlsFiles();
+// TLS_CERT + TLS_KEY (PEM files) => HTTPS dev server; otherwise plain HTTP.
+// Build never requires TLS material.
+const httpsOptions =
+  process.env.TLS_CERT && process.env.TLS_KEY
+    ? {
+        key: fs.readFileSync(process.env.TLS_KEY),
+        cert: fs.readFileSync(process.env.TLS_CERT),
+      }
+    : undefined;
 
 export default defineConfig({
   root: "src/client",
@@ -25,7 +30,7 @@ export default defineConfig({
     host: true,
     allowedHosts: true,
     strictPort: true,
-    https: { key: fs.readFileSync(tls.key), cert: fs.readFileSync(tls.cert) },
+    https: httpsOptions,
   },
   build: {
     outDir: path.resolve(__dirname, "dist"),
