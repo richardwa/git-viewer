@@ -145,7 +145,7 @@ const forcePushToggle = (repo: string) => {
               ),
             ),
           ),
-        span().css("color", "#999").inner("force push"),
+        span().css("color", "#999").inner("allow force push"),
       ),
     );
 };
@@ -159,11 +159,7 @@ export const RepoView = (name: string, initialBranch?: string) => {
       hbox()
         .css("gap", "1rem")
         .css("align-items", "center")
-        .inner(HashLink("#/"), cloneSection(name), forcePushToggle(name)),
-      hbox()
-        .css("gap", "1rem")
-        .css("align-items", "center")
-        .inner(cloneSection(name), forcePushToggle(name)),
+        .inner(HashLink("#").inner("← back")),
       hbox()
         .css("gap", "0.35rem")
         .css("align-items", "baseline")
@@ -174,8 +170,10 @@ export const RepoView = (name: string, initialBranch?: string) => {
             .inner(name),
           Title().css("font-size", "1.4rem").inner("@"),
           branchSelect(name, selectedBranch),
+          forcePushToggle(name),
         ),
       upstreamUrl(name),
+      cloneSection(name),
       commitLog(name, selectedBranch),
       readmeSection(name, selectedBranch),
     );
