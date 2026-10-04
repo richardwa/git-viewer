@@ -20,7 +20,7 @@ const td = (width?: string) => {
 
 const centerCell = (width: string, ...children: (BaseNode | string)[]) =>
   td(width)
-    .css("text-align", "right")
+    .css("text-align", "center")
     .inner(...children);
 
 const truncate = () =>
@@ -54,15 +54,15 @@ const pushCell = (repo: RepoInfo, run: (repo: string) => Promise<void>) =>
     repo.ahead === null
       ? div().css("color", muted()).inner("—")
       : Button()
-          .css("margin", "0")
-          .css("width", "10rem")
-          .on("click", () => run(repo.name))
-          .inner(
-            h("span")
-              .css("color", "var(--pico-ins-color)")
-              .inner(`↑${repo.ahead}`),
-            " push",
-          ),
+        .css("margin", "0")
+        .css("width", "100%")
+        .on("click", () => run(repo.name))
+        .inner(
+          h("span")
+            .css("color", "var(--pico-ins-color)")
+            .inner(`↑${repo.ahead}`),
+          " push",
+        ),
   );
 
 const pullCell = (repo: RepoInfo, run: (repo: string) => Promise<void>) =>
@@ -71,15 +71,15 @@ const pullCell = (repo: RepoInfo, run: (repo: string) => Promise<void>) =>
     repo.behind === null
       ? div().css("color", muted()).inner("—")
       : Button()
-          .css("margin", "0")
-          .css("width", "10rem")
-          .on("click", () => run(repo.name))
-          .inner(
-            h("span")
-              .css("color", "var(--pico-del-color)")
-              .inner(`↓${repo.behind}`),
-            " pull",
-          ),
+        .css("margin", "0")
+        .css("width", "100%")
+        .on("click", () => run(repo.name))
+        .inner(
+          h("span")
+            .css("color", "var(--pico-del-color)")
+            .inner(`↓${repo.behind}`),
+          " pull",
+        ),
   );
 
 const status = signal<string>("");
