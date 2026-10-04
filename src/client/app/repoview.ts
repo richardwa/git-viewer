@@ -9,7 +9,7 @@ import {
   signal,
   Signal,
 } from "solid-vanilla";
-import { HashLink, Panel, Title, Button } from "./components";
+import { Panel, Title, Button } from "./components";
 import { GitLog, fetchJson } from "../../common/interface";
 import { formatDate } from "../../common/util";
 import { Markdown } from "./markdown";
@@ -157,10 +157,7 @@ export const RepoView = (name: string, initialBranch?: string) => {
     .css("gap", "1rem")
     .inner(
       hbox()
-        .css("gap", "1rem")
-        .css("align-items", "center")
-        .inner(HashLink("#").inner("← back")),
-      hbox()
+        .css("justify-content", "center")
         .css("gap", "0.35rem")
         .css("align-items", "baseline")
         .inner(
