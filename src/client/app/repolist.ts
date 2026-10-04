@@ -192,40 +192,63 @@ const RepoTable = () =>
 // Reload the repo list from the server.
 const refresh = async () => repos.set(await fetchJson("repos"), true);
 
-// New-repo form: name + optional description, submitted via the create API.
-const NewRepoForm = () => {
+// New-repo dialog: a modal <dialog> opened from the "new repo" button.
+// Name only — description comes from the README once the repo has content.
+export const NewRepoForm = () => {
   const name = signal<string>("");
-  const description = signal<string>("");
+  const dlg = h("dialog");
+  const close = () => {
+    (dlg.el as HTMLDialogElement).close();
+    name.set("");
+  };
   const create = async () => {
+    if (!name.get().trim()) return;
     try {
-      status.set(await fetchJson("createRepo", name.get(), description.get()));
-      name.set("");
-      description.set("");
+      status.set(await fetchJson("createRepo", name.get()));
+      close();
       await refresh();
     } catch (err) {
       status.set(`create failed → ${err}`);
     }
   };
-  return hbox()
-    .css("gap", "0.5rem")
-    .css("align-items", "center")
+  const body = vbox()
+    .css("gap", "0.75rem")
+    .css("min-width", "20rem")
     .inner(
+      div().css("font-weight", "bold").inner("new repo"),
       TextInput(name)
-        .attr("placeholder", "new repo name")
+        .attr("placeholder", "repo name")
+        .attr("autofocus", "")
         .on("keydown", (event) => {
           if (event.key === "Enter") create();
         }),
-      TextInput(description)
-        .attr("placeholder", "description (optional)")
-        .css("flex", "1"),
-      Button().on("click", create).inner("new repo"),
+      hbox()
+        .css("gap", "0.5rem")
+        .css("justify-content", "flex-end")
+        .inner(
+          Button().on("click", close).inner("cancel"),
+          Button().on("click", create).inner("create"),
+        ),
     );
+  dlg
+    .css("border", "1px solid #666")
+    .css("border-radius", "0.35rem")
+    .css("padding", "1rem")
+    .css("background-color", "#2a2a2a")
+    .css("color", "inherit")
+    .inner(body);
+  return fragment().inner(
+    dlg,
+    Button()
+      .on("click", () => (dlg.el as HTMLDialogElement).showModal())
+      .inner("new repo"),
+  );
 };
 
 export const RepoList = () =>
   vbox()
     .css("gap", "1rem")
     .do(async (node) => {
-      node.inner(NewRepoForm(), RepoTable(), StatusLine());
+      node.inner(RepoTable(), StatusLine());
       await refresh();
     });

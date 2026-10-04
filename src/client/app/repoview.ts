@@ -3,6 +3,7 @@ import {
   hbox,
   vbox,
   div,
+  span,
   grid,
   fragment,
   signal,
@@ -37,6 +38,8 @@ const branchSelect = (
 ) =>
   h("select")
     .css("padding", "0.25rem")
+    .css("max-width", "10rem")
+    .css("font-size", "1rem")
     .on("change", (event) => selectedBranch.set(event.target.value))
     .do(async (node) => {
       const sorted = sortBranches(await fetchJson("gitBranches", repo));
@@ -93,13 +96,28 @@ const readmeSection = (
   });
 
 const cloneSection = (repo: string) =>
-  div()
+  hbox()
+    .css("gap", "0.35rem")
+    .css("align-items", "center")
     .do(async (node) => {
       const repos = await fetchJson("publicRepos");
       if (!repos.includes(repo)) return;
       const url = `${window.location.protocol}//${window.location.host}/${repo}.git`;
-      node.inner(h("code").inner(`git clone ${url}`));
-      node.el.style.display = "block";
+      const copyBtn = h("button")
+        .attr("title", "copy clone URL")
+        .css("cursor", "pointer")
+        .css("background", "none")
+        .css("border", "none")
+        .css("color", "#9cf")
+        .css("padding", "0")
+        .on("click", async () => {
+          await navigator.clipboard.writeText(url);
+          copyBtn.inner("✓");
+          setTimeout(() => copyBtn.inner("⧉"), 1200);
+        });
+      copyBtn.inner("⧉");
+      node.inner(h("code").inner(`git clone ${url}`), copyBtn);
+      node.el.style.display = "flex";
     })
     .css("color", "#9cf")
     .css("font-family", "monospace");
@@ -107,20 +125,27 @@ const cloneSection = (repo: string) =>
 /** Break-glass checkbox: force pushes to this repo over http (in-memory, resets on restart). */
 const forcePushToggle = (repo: string) => {
   const on = signal(false);
+  const checkbox = h("input").attr("type", "checkbox");
   return hbox()
-    .css("gap", "0.5rem")
+    .css("gap", "0.35rem")
     .css("align-items", "center")
     .do(async (node) => on.set(await fetchJson("forcePushEnabled", repo)))
     .watch(on, (node) =>
       node.inner(
-        Button()
+        checkbox
+          .attr("title", "allow force pushes over http (resets on restart)")
           .css("cursor", "pointer")
-          .css("background-color", on.get() ? "#a33" : "#424242")
-          .css("border", `1px solid ${on.get() ? "#c55" : "#666"}`)
-          .on("click", async () =>
-            on.set(await fetchJson("setForcePushEnabled", repo, !on.get())),
-          )
-          .inner(on.get() ? "force push: allowed" : "force push: denied"),
+          .css("margin", "0")
+          .on("change", async () =>
+            on.set(
+              await fetchJson(
+                "setForcePushEnabled",
+                repo,
+                (checkbox.el as HTMLInputElement).checked,
+              ),
+            ),
+          ),
+        span().css("color", "#999").inner("force push"),
       ),
     );
 };
@@ -131,16 +156,22 @@ export const RepoView = (name: string, initialBranch?: string) => {
   return vbox()
     .css("gap", "1rem")
     .inner(
-      HashLink("#/").inner("← all repos"),
+      hbox()
+        .css("gap", "1rem")
+        .css("align-items", "center")
+        .inner(HashLink("#/"), cloneSection(name), forcePushToggle(name)),
       hbox()
         .css("gap", "1rem")
         .css("align-items", "center")
         .inner(cloneSection(name), forcePushToggle(name)),
       hbox()
-        .css("gap", "0.5rem")
+        .css("gap", "0.35rem")
         .css("align-items", "baseline")
         .inner(
-          Title().css("font-size", "1.4rem").inner(name),
+          Title()
+            .css("font-size", "1.4rem")
+            .css("white-space", "nowrap")
+            .inner(name),
           Title().css("font-size", "1.4rem").inner("@"),
           branchSelect(name, selectedBranch),
         ),
