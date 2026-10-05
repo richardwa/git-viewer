@@ -1,0 +1,29 @@
+[Unit]
+Description=App Container
+
+[Container]
+Image=app
+ContainerName=app
+Environment=TZ=America/New_York
+
+Environment=PORT=7845
+PublishPort=0.0.0.0:7845:7845
+
+Volume=%h/repos:/REPOS
+Environment=REPOS_DIR=/REPOS
+
+# share host ssh keys for push to github.com
+Volume=%h/.ssh:/root/.ssh:ro
+
+Environment=ACL_FILE=/app/acl.yaml
+
+Volume=%h/certs:/root/certs:ro
+Environment=TLS_CERT=/root/certs/cert.pem
+Environment=TLS_KEY=/root/certs/key.pem
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=default.target
+

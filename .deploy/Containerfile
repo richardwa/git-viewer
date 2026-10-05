@@ -1,0 +1,20 @@
+FROM oven/bun:1.4-alpine
+
+# git is required at runtime: the server shells out to the git CLI
+# openssh-client is required for git+ssh:// remotes
+RUN apk add --no-cache git git-daemon openssh-client 
+
+WORKDIR /app
+
+COPY ./app_source/package.json .
+COPY ./app_source/bun.lock .
+RUN ["bun", "install", "--frozen-lockfile"]
+COPY ./app_source .
+
+RUN ["bun", "run", "build"]
+
+#replace sample acl
+COPY ./acl.yaml .
+
+# run entry point
+CMD ["bun", "run", "start"]
