@@ -58,6 +58,23 @@ export const configureRoutes = (app: Server) => {
     );
     res.json(user ?? "");
   });
+  // "change user" / sign-in: always challenge with the login realm. The client
+  // sends deliberately bogus Basic credentials; when the browser sees this 401
+  // for the same realm it replaces its cached credentials with the bogus pair,
+  // invalidating the previous login (Basic auth has no real logout).
+  anonRoutes.post("/switchUser", async (_req: Request, res: Response) => {
+    res.setHeader("WWW-Authenticate", 'Basic realm="git-viewer admin"');
+    res.status(401).json({ error: "credentials reset" });
+  });
+  // Top-level login navigation: XHR 401s never pop the native dialog (Chrome
+  // swallows them), but a document navigation does. The client hits this after
+  // invalidating cached credentials, so the dialog appears; success → home.
+  app.get("/login", async (req: Request, res: Response) => {
+    if (await authOk(req.headers.authorization as string | undefined))
+      return res.redirect("/");
+    res.setHeader("WWW-Authenticate", 'Basic realm="git-viewer admin"');
+    res.status(401).send("authentication required");
+  });
   anonRoutes.post(
     "/createRepo",
     async (req: Request, res: Response, next: NextFunction) => {

@@ -2,15 +2,18 @@ import { div, fragment, hbox } from "solid-vanilla";
 import { apiPath, fetchJson } from "../../common/interface";
 import { ClickLink } from "./components";
 
-// Basic auth has no real logout; this makes the browser overwrite its cached
-// credentials with a deliberately bogus pair, so the next request is 401'd and
-// the browser shows its native login dialog again (sign-in / user switch).
-const reauth = async () => {
-  await fetch(`${apiPath}/repos`, {
-    method: "POST",
-    headers: { Authorization: `Basic ${btoa("change-user:change-user")}` },
-  }).catch(() => {});
-  location.reload();
+// Basic auth has no real logout; the server's /api/switchUser always answers
+// 401 with the login realm. XHR with credentials passed via open() (a fetch
+// Authorization header bypasses the browser's auth cache and is ignored) makes
+// the browser overwrite its cached credentials with the bogus pair, so the
+// reload is 401'd and the browser shows its native login dialog again.
+const reauth = () => {
+  const xhr = new XMLHttpRequest();
+  xhr.open("POST", `${apiPath}/switchUser`, true, "signout", "signout");
+  // XHR 401s don't trigger the native dialog; a top-level navigation to /login
+  // (always a 401 challenge while unauthenticated) does.
+  xhr.onloadend = () => (location.href = "/login");
+  xhr.send();
 };
 
 // Top-right corner: the logged-in user name (empty/sign-in link when anonymous).
