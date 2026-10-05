@@ -80,7 +80,15 @@ export const configureRoutes = (app: Server) => {
     async (req: Request, res: Response, next: NextFunction) => {
       if (await authOk(req.headers.authorization as string | undefined))
         return next();
-      const [name] = (req as any).body ?? [];
+      // Body is normally an array of positional args (fetchJson contract);
+      // accept a bare object too, mapping it to the function's params by name.
+      const body = (req as any).body;
+      const args = Array.isArray(body)
+        ? body
+        : body && typeof body === "object"
+          ? [body.name ?? body.repo]
+          : [];
+      const [name] = args;
       try {
         res.json(await createRepo(name));
       } catch (error) {
