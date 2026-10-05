@@ -6,15 +6,15 @@ RUN apk add --no-cache git git-daemon openssh-client
 
 WORKDIR /app
 
-COPY ./app_source/package.json .
-COPY ./app_source/bun.lock .
+COPY package.json .
+COPY bun.lock .
 RUN ["bun", "install", "--frozen-lockfile"]
-COPY ./app_source .
+COPY .  .
 
 RUN ["bun", "run", "build"]
 
 #replace sample acl
-COPY ./acl.yaml .
+COPY .deploy/acl.yaml .
 
 # run entry point
 CMD ["bun", "run", "start"]
