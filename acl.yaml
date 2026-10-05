@@ -37,7 +37,10 @@ users:
   alice:
     password: "alice"
   bob:
-    password: "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    # hash using (-n no trailing \n): echo -n bob | sha256sum
+    password: "sha256:81b637d8fcd2c6da6359e6963113a1170de795e4b725b84d1e0b4cfd9ec58ce9"
+  carl:
+    password: "carl"
     # optional: extra grants for a user, e.g. share a private repo
     # repos:
     #   - "internal-*:ro"
