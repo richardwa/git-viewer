@@ -47,39 +47,51 @@ const repoCell = (repo: RepoInfo) =>
   );
 
 // Push/pull buttons carry the arrow + count (Pico's semantic ins/del
-// colors); "—" when there is no upstream to compare against.
+// colors); disabled when there is nothing to send/receive (0 changes), and a
+// disabled "—" placeholder button when there is no upstream (keeps row
+// heights uniform).
 const pushCell = (repo: RepoInfo, run: (repo: string) => Promise<void>) =>
   centerCell(
     "10.5rem",
     repo.ahead === null
-      ? div().css("color", muted()).inner("—")
+      ? Button()
+          .attr("disabled", () => "disabled")
+          .css("margin", "0")
+          .css("width", "100%")
+          .inner("—")
       : Button()
-        .css("margin", "0")
-        .css("width", "100%")
-        .on("click", () => run(repo.name))
-        .inner(
-          h("span")
-            .css("color", "var(--pico-ins-color)")
-            .inner(`↑${repo.ahead}`),
-          " push",
-        ),
+          .attr("disabled", () => (repo.ahead === 0 ? "disabled" : ""))
+          .css("margin", "0")
+          .css("width", "100%")
+          .on("click", () => run(repo.name))
+          .inner(
+            h("span")
+              .css("color", "var(--pico-ins-color)")
+              .inner(`↑${repo.ahead}`),
+            " push",
+          ),
   );
 
 const pullCell = (repo: RepoInfo, run: (repo: string) => Promise<void>) =>
   centerCell(
     "10.5rem",
     repo.behind === null
-      ? div().css("color", muted()).inner("—")
+      ? Button()
+          .attr("disabled", () => "disabled")
+          .css("margin", "0")
+          .css("width", "100%")
+          .inner("—")
       : Button()
-        .css("margin", "0")
-        .css("width", "100%")
-        .on("click", () => run(repo.name))
-        .inner(
-          h("span")
-            .css("color", "var(--pico-del-color)")
-            .inner(`↓${repo.behind}`),
-          " pull",
-        ),
+          .attr("disabled", () => (repo.behind === 0 ? "disabled" : ""))
+          .css("margin", "0")
+          .css("width", "100%")
+          .on("click", () => run(repo.name))
+          .inner(
+            h("span")
+              .css("color", "var(--pico-del-color)")
+              .inner(`↓${repo.behind}`),
+            " pull",
+          ),
   );
 
 const status = signal<string>("");
@@ -205,6 +217,9 @@ export const NewRepoForm = () => {
     dlg,
     Button()
       .on("click", () => (dlg.el as HTMLDialogElement).showModal())
+      .css("padding", "0.25rem 0.75rem")
+      .css("font-size", "0.85rem")
+      .css("margin", "0")
       .inner("new repo"),
   );
 };

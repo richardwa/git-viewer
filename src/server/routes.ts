@@ -52,6 +52,12 @@ export const configureRoutes = (app: Server) => {
       );
     },
   );
+  anonRoutes.post("/currentUser", async (req: Request, res: Response) => {
+    const user = await authenticate(
+      req.headers.authorization as string | undefined,
+    );
+    res.json(user ?? "");
+  });
   anonRoutes.post(
     "/createRepo",
     async (req: Request, res: Response, next: NextFunction) => {
@@ -87,6 +93,7 @@ export const configureRoutes = (app: Server) => {
     gitPull: gitPull,
     gitPush: gitPush,
     publicRepos: () => httpRepos(),
+    currentUser: () => Promise.resolve(""), // served anonymously above
     forcePushEnabled: (repo: string) => Promise.resolve(forcePushEnabled(repo)),
     setForcePushEnabled: (repo: string, value: boolean) =>
       Promise.resolve(setForcePushEnabled(repo, value)),
