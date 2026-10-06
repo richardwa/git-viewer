@@ -9,7 +9,7 @@ import {
   signal,
   Signal,
 } from "solid-vanilla";
-import { Panel, Button, LoginPanel, userName } from "solid-vanilla-ui";
+import { Panel, Button, LoginPanel, userName, isGuest } from "solid-vanilla-ui";
 import { GitLog } from "../../common/interface";
 import { fetchJson } from "../api";
 import { formatDate } from "../../common/util";
@@ -109,8 +109,11 @@ const cloneSection = (repo: string) =>
       node.el.style.display = "flex";
     });
 
-/** Break-glass checkbox: force pushes to this repo over http (in-memory, resets on restart). */
+/** Break-glass checkbox: force pushes to this repo over http (in-memory, resets on restart).
+ *  Policy write — hidden from the read-only guest; the server rejects it for
+ *  anon/unauthenticated callers too. */
 const forcePushToggle = (repo: string) => {
+  if (isGuest()) return fragment();
   const on = signal(false);
   const set = async (value: boolean) =>
     on.set(await fetchJson("setForcePushEnabled", repo, value));
