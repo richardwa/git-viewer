@@ -97,6 +97,17 @@ const passwordMatches = (
   return crypto.timingSafeEqual(expected, digest(given));
 };
 
+/** Validate a login/password pair; returns the user name, or null when the
+ * credentials are wrong. */
+export const verify = async (
+  login: string,
+  password: string,
+): Promise<string | null> => {
+  const { users } = await loadAcl();
+  const cfg = users?.[login];
+  return cfg && passwordMatches(cfg.password, password) ? login : null;
+};
+
 /** Validate a Basic auth header; returns the user name, or null when the
  * header is absent or the credentials are wrong (callers must treat a present
  * header with null result as invalid credentials, not as anonymous). */
@@ -107,10 +118,7 @@ export const authenticate = async (
   const decoded = Buffer.from(authHeader.slice(6), "base64").toString();
   const sep = decoded.indexOf(":");
   if (sep === -1) return null;
-  const [name, password] = [decoded.slice(0, sep), decoded.slice(sep + 1)];
-  const { users } = await loadAcl();
-  const cfg = users?.[name];
-  return cfg && passwordMatches(cfg.password, password) ? name : null;
+  return verify(decoded.slice(0, sep), decoded.slice(sep + 1));
 };
 
 /** Name of the admin account (the ACL "admin" user), or null when unset. */
@@ -137,6 +145,8 @@ export const permissionFor = async (
   repo: string,
 ): Promise<Perm | null> => {
   const acl = await loadAcl();
+  // the read-only guest account has exactly the anonymous grants
+  if (user === "anon") user = null;
   if (user) {
     if (user === acl.admin) return "rw";
     if (!(await isPrivateRepo(repo))) return "rw"; // public: any user can push

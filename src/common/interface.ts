@@ -29,8 +29,6 @@ export type ServerApi = {
   gitLogs: (repo: string, branch: string, lines?: number) => Promise<GitLog[]>;
   /** create a new bare repo in the repos dir; error message on failure */
   createRepo: (name: string, description?: string) => Promise<string>;
-  /** name of the authenticated ACL user, "" when anonymous */
-  currentUser: () => Promise<string>;
   gitPull: (repo: string) => Promise<string>;
   gitPush: (repo: string) => Promise<string>;
   /** repo names reachable over http (/<name>.git) by at least one ACL principal */
@@ -39,13 +37,3 @@ export type ServerApi = {
   forcePushEnabled: (repo: string) => Promise<boolean>;
   setForcePushEnabled: (repo: string, value: boolean) => Promise<boolean>;
 };
-
-export const fetchJson = <T extends keyof ServerApi>(
-  key: T,
-  ...params: Parameters<ServerApi[T]>
-) =>
-  fetch(`${apiPath}/${key}`, {
-    method: "post",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(params),
-  }).then((res) => res.json()) as ReturnType<ServerApi[T]>;

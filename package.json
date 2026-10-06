@@ -23,6 +23,7 @@
   "dependencies": {
     "@picocss/pico": "^2.1.1",
     "solid-vanilla": "github:richardwa/solid-vanilla#d758c02",
+    "solid-vanilla-server": "../solid-vanilla-server",
     "solid-vanilla-ui": "../solid-vanilla-ui",
     "yaml": "^2.9.1"
   }

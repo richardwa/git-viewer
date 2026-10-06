@@ -9,7 +9,8 @@ import {
   Signal,
 } from "solid-vanilla";
 import { Button, HashLink, TextInput, Panel } from "solid-vanilla-ui";
-import { RepoInfo, fetchJson } from "../../common/interface";
+import { RepoInfo } from "../../common/interface";
+import { fetchJson } from "../api";
 
 const muted = () => "var(--pico-muted-color)";
 
@@ -123,6 +124,8 @@ const runGit = async (info: Signal<RepoInfo>, action: "push" | "pull") => {
   }
 };
 
+// Guest rows get ahead/behind = null from the server, so push/pull render
+// as disabled "—" placeholders — no extra branching needed.
 const row = (info: Signal<RepoInfo>) =>
   h("tr").watch(info, (node) => {
     const repo = info.get();

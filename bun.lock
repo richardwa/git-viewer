@@ -7,6 +7,7 @@
       "dependencies": {
         "@picocss/pico": "^2.1.1",
         "solid-vanilla": "github:richardwa/solid-vanilla#d758c02",
+        "solid-vanilla-server": "../solid-vanilla-server",
         "solid-vanilla-ui": "../solid-vanilla-ui",
         "yaml": "^2.9.1",
       },
@@ -319,6 +320,8 @@
 
     "solid-vanilla": ["solid-vanilla@github:richardwa/solid-vanilla#d758c02", {}, "richardwa-solid-vanilla-d758c02", "sha512-ZNhGMkv9gFPwdrSQmZAXhj9ljnCL6NCsWyBekn2ozj7Jd2VCAQUIZCQ9ayY66mhT7TIDd3y7ttx57QB05B8sRg=="],
 
+    "solid-vanilla-server": ["solid-vanilla-server@file:../solid-vanilla-server", { "dependencies": { "express": "^5.2.1", "yaml": "^2.9.1" }, "devDependencies": { "@types/bun": "^1.4.2", "@types/express": "types/express", "prettier": "^3.9.6", "typescript": "7" } }],
+
     "solid-vanilla-ui": ["solid-vanilla-ui@file:../solid-vanilla-ui", { "dependencies": { "@picocss/pico": "^2.1.1", "solid-vanilla": "github:richardwa/solid-vanilla#d758c02" }, "devDependencies": { "prettier": "^3.9.6", "typescript": "7", "vite": "^7.3.6" } }],
 
     "source-map-js": ["source-map-js@1.2.1", "", {}, "sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA=="],
@@ -353,6 +356,12 @@
 
     "router/path-to-regexp": ["path-to-regexp@8.4.2", "", {}, "sha512-qRcuIdP69NPm4qbACK+aDogI5CBDMi1jKe0ry5rSQJz8JVLsC7jV8XpiJjGRLLol3N+R5ihGYcrPLTno6pAdBA=="],
 
+    "solid-vanilla-server/@types/express": ["@types/express@github:types/express#7670cf1", { "dependencies": { "@types/serve-static": "github:types/npm-serve-static#c1f96843c8b96a37f6c534cb1dadb48f5329e4e0", "path-to-regexp": "github:pillarjs/path-to-regexp#ec285ed3500aed455df59e3b8b07f473412918a4" }, "peerDependencies": { "@types/node": "*" } }, "types-express-7670cf1", "sha512-hlxXqO4VyeNGHfN//rq/Ce22cSkipv5DR7blgNU3qKU4pfQgjqwWfty65gBBxl5J52xJesa0W4oLCn87YJn/aw=="],
+
     "type-is/content-type": ["content-type@2.1.0", "", {}, "sha512-mj7UPXE0jaqaOsukNZRUEfEi2AcL7C/vwmwcHV0O97eO1E1pxBZuyjlZrx5seTaNBg1U6+o35wpa35Qfcc+7ag=="],
+
+    "solid-vanilla-server/@types/express/@types/serve-static": ["@types/serve-static@github:types/npm-serve-static#c1f9684", { "peerDependencies": { "@types/node": "*" } }, "typed-typings-npm-serve-static-c1f9684", "sha512-Vc6wTx936su6sHpNImIykjMUXzFyr9XjoIGDe1FGSxdXe3rWD/AyQ/xMwnLmF2qPGMqZiIMDzt4qH9PLn08s+Q=="],
+
+    "solid-vanilla-server/@types/express/path-to-regexp": ["path-to-regexp@github:pillarjs/path-to-regexp#ec285ed", { "dependencies": { "isarray": "0.0.1" } }, "pillarjs-path-to-regexp-ec285ed", "sha512-AzDZdhcTRbpJeg1k3AusFiM3KdJYsgpmRJ2eSdiu3puaj9g9+mwtwCXdeqj07uBQpA5M2i+nXpv3LQ7P9Nd5fw=="],
   }
 }

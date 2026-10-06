@@ -44,6 +44,10 @@ users:
     # optional: extra grants for a user, e.g. share a private repo
     # repos:
     #   - "internal-*:ro"
+  # read-only guest account: the UI's "continue as guest" link logs in as
+  # anon/anon; the server treats it exactly like an anonymous visitor
+  anon:
+    password: "anon"
 
 anonymous:
   # optional extra grants for unauthenticated requests, e.g. anonymous

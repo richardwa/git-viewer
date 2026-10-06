@@ -9,8 +9,9 @@ import {
   signal,
   Signal,
 } from "solid-vanilla";
-import { Panel, Button } from "solid-vanilla-ui";
-import { GitLog, fetchJson } from "../../common/interface";
+import { Panel, Button, LoginPanel, userName } from "solid-vanilla-ui";
+import { GitLog } from "../../common/interface";
+import { fetchJson } from "../api";
 import { formatDate } from "../../common/util";
 import { Markdown } from "./markdown";
 
@@ -138,6 +139,18 @@ const forcePushToggle = (repo: string) => {
 
 export const RepoView = (name: string, initialBranch?: string) => {
   const selectedBranch = signal<string | undefined>(initialBranch);
+
+  // not signed in: the login panel (repo names are browsable anonymously)
+  if (!userName.get())
+    return vbox()
+      .css("gap", "1rem")
+      .inner(
+        h("p")
+          .css("text-align", "center")
+          .css("color", "var(--pico-muted-color)")
+          .inner(`sign in to view ${name}`),
+        LoginPanel(),
+      );
 
   return vbox()
     .css("gap", "1rem")
