@@ -8,7 +8,7 @@ import {
   signal,
   Signal,
 } from "solid-vanilla";
-import { Button, HashLink, TextInput } from "./components";
+import { Button, HashLink, TextInput, Panel } from "solid-vanilla-ui";
 import { RepoInfo, fetchJson } from "../../common/interface";
 
 const muted = () => "var(--pico-muted-color)";
@@ -185,33 +185,28 @@ export const NewRepoForm = () => {
       status.set(`create failed → ${err}`);
     }
   };
-  // Pico styles <dialog> and <article>; wrap the body in an article card
-  const body = h("article")
-    .css("margin", "0")
-    .inner(
-      vbox()
-        .css("gap", "0.75rem")
-        .css("min-width", "20rem")
-        .inner(
-          h("strong").inner("new repo"),
-          TextInput(name)
-            .attr("placeholder", "repo name")
-            .attr("autofocus", "")
-            .on("keydown", (event) => {
-              if (event.key === "Enter") create();
-            }),
-          hbox()
-            .css("gap", "0.5rem")
-            .css("justify-content", "flex-end")
-            .inner(
-              Button().on("click", close).inner("cancel"),
-              Button()
-                .attr("type", "submit")
-                .on("click", create)
-                .inner("create"),
-            ),
-        ),
-    );
+  // Pico styles <dialog> and <article>; wrap the body in a panel card
+  const body = Panel().inner(
+    vbox()
+      .css("gap", "0.75rem")
+      .css("min-width", "20rem")
+      .inner(
+        h("strong").inner("new repo"),
+        TextInput(name)
+          .attr("placeholder", "repo name")
+          .attr("autofocus", "")
+          .on("keydown", (event) => {
+            if (event.key === "Enter") create();
+          }),
+        hbox()
+          .css("gap", "0.5rem")
+          .css("justify-content", "flex-end")
+          .inner(
+            Button().on("click", close).inner("cancel"),
+            Button().attr("type", "submit").on("click", create).inner("create"),
+          ),
+      ),
+  );
   dlg.inner(body);
   return fragment().inner(
     dlg,

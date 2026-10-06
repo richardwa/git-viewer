@@ -1,6 +1,6 @@
 import { div, fragment, hbox } from "solid-vanilla";
 import { apiPath, fetchJson } from "../../common/interface";
-import { ClickLink } from "./components";
+import { ClickLink } from "solid-vanilla-ui";
 
 // Basic auth has no real logout; the server's /api/switchUser always answers
 // 401 with the login realm. XHR with credentials passed via open() (a fetch

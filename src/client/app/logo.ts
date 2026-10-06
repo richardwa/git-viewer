@@ -1,5 +1,5 @@
 import { h, vbox, div } from "solid-vanilla";
-import { HashLink } from "./components";
+import { HashLink } from "solid-vanilla-ui";
 
 // App logo: /logo.svg (served from public/) next to the app name.
 export const Logo = () =>

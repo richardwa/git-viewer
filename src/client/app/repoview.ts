@@ -9,7 +9,7 @@ import {
   signal,
   Signal,
 } from "solid-vanilla";
-import { Panel, Title, Button } from "./components";
+import { Panel, Button } from "solid-vanilla-ui";
 import { GitLog, fetchJson } from "../../common/interface";
 import { formatDate } from "../../common/util";
 import { Markdown } from "./markdown";
