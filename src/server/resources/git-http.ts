@@ -9,6 +9,7 @@ import express, { Request, Response, Router } from "express";
 import { reposDir, isValidRepoName, isBare, repoDir } from "./git";
 import { forcePushEnabled } from "./policy";
 import { ensurePushHook } from "./pushcheck";
+import { ensureBuildHook } from "./build";
 
 interface CgiResult {
   status: number;
@@ -150,6 +151,7 @@ export const createHttpRouter = (): Router => {
         if (isPush) {
           const gitDir = bare ? dir : path.join(dir, ".git");
           await ensurePushHook(gitDir);
+          await ensureBuildHook(gitDir, repo);
         }
         const cgi = await runCgi(req, body, projectRoot, gitPath, repo);
         return (

@@ -1,0 +1,12 @@
+[Unit]
+Description=git-viewer: process pending build jobs (drain queue, exit)
+
+[Service]
+Type=oneshot
+# __PROJECT__ / __REPOS_DIR__ are rewritten by .deploy/install.sh
+WorkingDirectory=__PROJECT__
+ExecStart=__BUN__ scripts/build-daemon.ts
+Environment=RUN_ONCE=1
+Environment=REPOS_DIR=__REPOS_DIR__
+# long builds must not be killed mid-flight
+TimeoutStartSec=0

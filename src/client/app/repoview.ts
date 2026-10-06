@@ -14,6 +14,8 @@ import { GitLog } from "../../common/interface";
 import { fetchJson } from "../api";
 import { formatDate } from "../../common/util";
 import { Markdown } from "./markdown";
+import { BuildRun } from "../../common/interface";
+import { asDialog, PanelBox } from "./modal";
 
 const preferredBranches = ["main", "master", "develop", "trunk"];
 
@@ -137,6 +139,79 @@ const forcePushToggle = (repo: string) => {
     );
 };
 
+/** Status label with a muted/colored tint for non-done states. */
+const statusLabel = (run: BuildRun) =>
+  span()
+    .css(
+      "color",
+      run.status === "failed"
+        ? "var(--pico-color-red-500)"
+        : run.status === "done"
+          ? "var(--pico-color-green-500)"
+          : "var(--pico-muted-color)",
+    )
+    .inner(run.status);
+
+const logDialog = (repo: string, run: BuildRun, close: () => void) => {
+  const dlg = h("dialog");
+  const panel = Panel()
+    .css("min-width", "min(60rem, 90vw)")
+    .css("max-height", "80vh")
+    .do(async (node) => {
+      const log = await fetchJson("buildLog", repo, run.branch, run.run);
+      node.inner(
+        h("pre")
+          .css("white-space", "pre-wrap")
+          .css("margin", "0")
+          .inner(log || "(no build.log)"),
+      );
+    });
+  dlg.inner(PanelBox(close, panel, h("h4").inner(`build ${run.run}`)));
+  asDialog(dlg).showModal();
+  return dlg;
+};
+
+/** Build runs for the selected branch: clickable rows that open build.log. */
+const buildsSection = (
+  repo: string,
+  selectedBranch: Signal<string | undefined>,
+) =>
+  Panel()
+    .css("display", "none") // hidden until the branch has runs
+    .watch(selectedBranch, async (node) => {
+      const branch = selectedBranch.get();
+      if (!branch) return;
+      const runs = await fetchJson("buildRuns", repo, branch);
+      node.el.style.display = runs.length ? "" : "none";
+      node.inner(
+        h("h4").css("margin-top", "0").inner("builds"),
+        ...runs.map((run) =>
+          node.memo(`${branch} ${run.run}`, () =>
+            hbox()
+              .css("gap", "0.5rem")
+              .css("align-items", "center")
+              .inner(
+                Button()
+                  .cn("outline")
+                  .on("click", () => {
+                    const dlg = logDialog(repo, run, () =>
+                      asDialog(dlg).close(),
+                    );
+                    document.body.append(dlg.el);
+                  })
+                  .inner(run.run),
+                statusLabel(run),
+              ),
+          ),
+        ),
+        runs.length
+          ? fragment()
+          : span()
+              .css("color", "var(--pico-muted-color)")
+              .inner("no builds yet"),
+      );
+    });
+
 export const RepoView = (name: string, initialBranch?: string) => {
   const selectedBranch = signal<string | undefined>(initialBranch);
 
@@ -156,6 +231,7 @@ export const RepoView = (name: string, initialBranch?: string) => {
       upstreamUrl(name),
       cloneSection(name),
       commitLog(name, selectedBranch),
+      buildsSection(name, selectedBranch),
       readmeSection(name, selectedBranch),
     );
 };

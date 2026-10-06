@@ -1,0 +1,12 @@
+[Unit]
+Description=git-viewer: poll the build queue as a safety net
+
+[Timer]
+# inotify can miss events (daemon/service restarts, fs quirks); the timer
+# guarantees queued jobs are picked up eventually
+OnUnitInactiveSec=2min
+AccuracySec=15s
+Unit=gitviewer-build.service
+
+[Install]
+WantedBy=timers.target

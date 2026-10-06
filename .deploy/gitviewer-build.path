@@ -1,0 +1,13 @@
+[Unit]
+Description=git-viewer: watch the build queue for new jobs
+
+[Path]
+# fires when anything is written into the spool dir (job files are created
+# with tmp+rename, so the rename itself is the event)
+PathModified=__REPOS_DIR__/.build-queue
+# jobs arriving while the service is already running produce events too;
+# the service drains the whole queue before exiting
+Unit=gitviewer-build.service
+
+[Install]
+WantedBy=default.target

@@ -64,3 +64,45 @@ users:
 ```
 
 Override the path with `USERS_FILE`.
+## Build on commit
+
+A repo whose pushed commit carries a `build.sh` (or `.build.sh`) at its root
+is built automatically on push:
+
+- The viewer's managed `post-receive` hook spools a job file into
+  `<reposDir>/.build-queue/<time>-<repo>-<branch>-<hash6>.txt`. The file body
+  is the state word: `queued` → `running` → `done` / `failed`. `done` job
+  files are deleted once the build completes — the artifact run dir is the
+  durable record (and the hook's dedupe checks it too, so re-pushing a
+  built commit never re-triggers). `failed` job files are kept for
+  inspection; delete one to retry the commit.
+- Builds run **on the host**, not in the viewer container. Either run the
+  daemon by hand:
+
+  ```bash
+  REPOS_DIR=/path/to/repos BUILD_IMAGE=debian:trixie bun scripts/build-daemon.ts
+  ```
+
+  or install it as systemd user units (fswatcher + fallback timer) with:
+
+  ```bash
+  REPOS_DIR=/path/to/repos .deploy/install.sh
+  ```
+
+  The `.path` unit watches the queue and fires a oneshot service that drains
+  it (`RUN_ONCE=1`); a 2-minute `.timer` is the safety net for missed
+  inotify events. Journal: `journalctl --user -u gitviewer-build.service -f`.
+
+  It claims one job at a time (single-threaded, oldest first), checks the
+  commit's tree out to a temp worktree, and runs inside a podman container:
+
+  ```bash
+  podman run --rm -v <worktree>:/src -v <artdir>:/output <image> \
+    sh -c 'cd /src && sh <script> > /output/build.log 2>&1'
+  ```
+
+- Artifacts land in `<reposDir>/<repo>.art/<branch>/<time>-<hash6>/` — a
+  naming convention only; the dir is invisible to the repo list. Each run
+  dir holds `build.log` and a `status` file.
+- The repo view lists runs for the selected branch; click one to read its
+  `build.log`.

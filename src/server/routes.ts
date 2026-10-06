@@ -13,6 +13,7 @@ import {
 } from "./resources/git";
 import { verifyAdmin } from "./resources/users";
 import { forcePushEnabled, setForcePushEnabled } from "./resources/policy";
+import { buildRuns, buildLog } from "./resources/build";
 
 // Access model: everything is public and anonymous. The only protected key
 // is setForcePushEnabled — it sits behind Basic auth against the single
@@ -40,6 +41,10 @@ export const configureRoutes = (app: Server) => {
     // injected user argument)
     setForcePushEnabled: async (repo: string, value: boolean) =>
       setForcePushEnabled(repo, value),
+    buildRuns: (_user: string, repo: string, branch: string) =>
+      buildRuns(repo, branch),
+    buildLog: (_user: string, repo: string, branch: string, run: string) =>
+      buildLog(repo, branch, run),
   };
 
   configureApi(app, {

@@ -18,6 +18,15 @@ export type RepoInfo = {
   notes: string;
 };
 
+export type BuildStatus = "queued" | "running" | "done" | "failed";
+
+export type BuildRun = {
+  branch: string;
+  /** <time>-<hash6> dir name (or bare hash6 for queued/running jobs) */
+  run: string;
+  status: BuildStatus;
+};
+
 export type ServerApi = {
   repos: () => Promise<RepoInfo[]>;
   /** fresh info for one repo (null when unknown) */
@@ -35,4 +44,8 @@ export type ServerApi = {
   forcePushEnabled: (repo: string) => Promise<boolean>;
   /** admin-only: toggle force pushes for a repo over http */
   setForcePushEnabled: (repo: string, value: boolean) => Promise<boolean>;
+  /** build runs for a repo/branch (spooled jobs + completed artifact dirs) */
+  buildRuns: (repo: string, branch: string) => Promise<BuildRun[]>;
+  /** contents of a run's build.log ("" when missing) */
+  buildLog: (repo: string, branch: string, run: string) => Promise<string>;
 };
