@@ -11,6 +11,7 @@ import {
 import { Button, HashLink, TextInput, Panel } from "solid-vanilla-ui";
 import { RepoInfo } from "../../common/interface";
 import { fetchJson } from "../api";
+import { PanelBox } from "./modal";
 
 const muted = () => "var(--pico-muted-color)";
 
@@ -188,8 +189,11 @@ export const NewRepoForm = () => {
       status.set(`create failed → ${err}`);
     }
   };
-  // Pico styles <dialog> and <article>; wrap the body in a panel card
-  const body = Panel().inner(
+  // Pico styles <dialog> and <article>; panel card with a ✕ close icon at
+  // its top-right corner
+  const body = PanelBox(
+    close,
+    Panel(),
     vbox()
       .css("gap", "0.75rem")
       .css("min-width", "20rem")
@@ -205,7 +209,6 @@ export const NewRepoForm = () => {
           .css("gap", "0.5rem")
           .css("justify-content", "flex-end")
           .inner(
-            Button().on("click", close).inner("cancel"),
             Button().attr("type", "submit").on("click", create).inner("create"),
           ),
       ),

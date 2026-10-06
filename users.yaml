@@ -1,0 +1,13 @@
+# The single admin account — the only login in the system.
+# It gates the per-repo force-push toggle (API and UI). Everything else
+# (UI browsing, git fetch/clone/push, repo creation) needs no credentials.
+#
+# Re-read on change; override the path with the USERS_FILE env var.
+#
+# Passwords: plain text ("secret"), or "sha256:<hex digest>" (preferred):
+# generate with:  echo -n 'secret' | sha256sum
+
+users:
+  alice:
+    password: "alice"
+    groups: [admin]

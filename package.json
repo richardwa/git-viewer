@@ -4,10 +4,10 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "bun --bun x vite",
     "format": "bun x prettier -w *.json *.ts ./src",
     "prebuild": "bun run format",
-    "build": "tsc && vite build",
+    "build": "tsc && bun --bun x vite build",
     "start": "bun src/server/server.ts",
     "samples": "bun scripts/sample-repos.ts",
     "test": "bun test src/server"

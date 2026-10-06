@@ -9,7 +9,7 @@ import {
   signal,
   Signal,
 } from "solid-vanilla";
-import { Panel, Button, LoginPanel, userName, isGuest } from "solid-vanilla-ui";
+import { Panel, Button, userName } from "solid-vanilla-ui";
 import { GitLog } from "../../common/interface";
 import { fetchJson } from "../api";
 import { formatDate } from "../../common/util";
@@ -101,19 +101,16 @@ const cloneSection = (repo: string) =>
   hbox()
     .css("gap", "0.35rem")
     .css("align-items", "center")
-    .do(async (node) => {
-      const repos = await fetchJson("publicRepos");
-      if (!repos.includes(repo)) return;
+    .do((node) => {
       const url = `${window.location.protocol}//${window.location.host}/${repo}.git`;
       node.inner(`git clone ${url}`);
-      node.el.style.display = "flex";
     });
 
 /** Break-glass checkbox: force pushes to this repo over http (in-memory, resets on restart).
- *  Policy write — hidden from the read-only guest; the server rejects it for
- *  anon/unauthenticated callers too. */
+ *  Admin-only — the server rejects the write for anyone else, so the toggle
+ *  is only shown to a signed-in (admin) user. */
 const forcePushToggle = (repo: string) => {
-  if (isGuest()) return fragment();
+  if (!userName.get()) return fragment();
   const on = signal(false);
   const set = async (value: boolean) =>
     on.set(await fetchJson("setForcePushEnabled", repo, value));
@@ -142,18 +139,6 @@ const forcePushToggle = (repo: string) => {
 
 export const RepoView = (name: string, initialBranch?: string) => {
   const selectedBranch = signal<string | undefined>(initialBranch);
-
-  // not signed in: the login panel (repo names are browsable anonymously)
-  if (!userName.get())
-    return vbox()
-      .css("gap", "1rem")
-      .inner(
-        h("p")
-          .css("text-align", "center")
-          .css("color", "var(--pico-muted-color)")
-          .inner(`sign in to view ${name}`),
-        LoginPanel(),
-      );
 
   return vbox()
     .css("gap", "1rem")

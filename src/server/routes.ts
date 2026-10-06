@@ -11,68 +11,43 @@ import {
   gitPush,
   createRepo,
 } from "./resources/git";
-import { verify, httpRepos } from "./resources/acl";
+import { verifyAdmin } from "./resources/users";
 import { forcePushEnabled, setForcePushEnabled } from "./resources/policy";
 
-// All API keys are served via configureApi's `anonymous` list: every handler
-// receives the authenticated login name ("" when unauthenticated, "anon"
-// when signed in as the read-only guest) and enforces its own access rules.
-// This keeps the API browsable for logged-out visitors and read-only for the
-// guest, while writes stay behind real credentials.
-const guestOnlyMessage = "read-only access — sign in to make changes";
-const requireUser = (user: string) => {
-  if (!user) throw new Error("authentication required");
-  if (user === "anon") throw new Error(guestOnlyMessage);
-};
-
+// Access model: everything is public and anonymous. The only protected key
+// is setForcePushEnabled — it sits behind Basic auth against the single
+// admin account (users.yaml), both here and in the UI.
+//
+// Note: configureApi injects the authenticated login name ("") as the FIRST
+// argument of every anonymous handler — hence the leading `_user` parameter.
 export const configureRoutes = (app: Server) => {
   const serverImpl = {
-    // public: full details for real users, names-only for guests/anonymous
-    repos: async (user: string) => {
-      const infos = await listRepos();
-      if (user && user !== "anon") return infos;
-      return infos.map((info) => ({
-        name: info.name,
-        description: "",
-        ahead: null,
-        behind: null,
-        notes: "",
-      }));
-    },
-    // public reads (public repos only; private repos are git-http-level ACL'd)
-    repoInfo: (user: string, repo: string) => getRepoInfo(repo),
-    readme: (user: string, repo: string, branch?: string) =>
+    repos: () => listRepos(),
+    repoInfo: (_user: string, repo: string) => getRepoInfo(repo),
+    readme: (_user: string, repo: string, branch?: string) =>
       getReadme(repo, branch),
-    gitBranches: (user: string, repo: string) => getBranches(repo),
-    gitRemoteUrl: (user: string, repo: string) => getRemoteUrl(repo),
-    gitLogs: (user: string, repo: string, branch: string, lines?: number) =>
+    gitBranches: (_user: string, repo: string) => getBranches(repo),
+    gitRemoteUrl: (_user: string, repo: string) => getRemoteUrl(repo),
+    gitLogs: (_user: string, repo: string, branch: string, lines?: number) =>
       getGitLog(repo, branch, lines),
-    publicRepos: (user: string) => httpRepos(),
-    forcePushEnabled: (user: string, repo: string) =>
+    createRepo: (_user: string, name: string, description?: string) =>
+      createRepo(name, description),
+    gitPull: (_user: string, repo: string) => gitPull(repo),
+    gitPush: (_user: string, repo: string) => gitPush(repo),
+    forcePushEnabled: (_user: string, repo: string) =>
       Promise.resolve(forcePushEnabled(repo)),
-    // writes require a real (non-guest) login
-    createRepo: async (user: string, name: string, description?: string) => {
-      requireUser(user);
-      return createRepo(name, description);
-    },
-    gitPull: async (user: string, repo: string) => {
-      requireUser(user);
-      return gitPull(repo);
-    },
-    gitPush: async (user: string, repo: string) => {
-      requireUser(user);
-      return gitPush(repo);
-    },
-    setForcePushEnabled: async (user: string, repo: string, value: boolean) => {
-      requireUser(user);
-      return setForcePushEnabled(repo, value);
-    },
+    // admin-only: mounted as a protected route (Basic auth required, no
+    // injected user argument)
+    setForcePushEnabled: async (repo: string, value: boolean) =>
+      setForcePushEnabled(repo, value),
   };
 
   configureApi(app, {
     serverImpl,
-    checkCredentials: async (login, password) =>
-      (await verify(login, password)) !== null,
-    anonymous: Object.keys(serverImpl),
+    checkCredentials: verifyAdmin,
+    // every key except setForcePushEnabled is served without authentication
+    anonymous: Object.keys(serverImpl).filter(
+      (key) => key !== "setForcePushEnabled",
+    ),
   });
 };

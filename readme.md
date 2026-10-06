@@ -1,4 +1,4 @@
-# Starter template
+# git-viewer
 
 ## Features
 
@@ -29,15 +29,38 @@ const logs = await fetchJson("gitLogs", branch, maxLines.get()); // input and re
 
 ```
 
-## Read-only git HTTP access
+## Git HTTP access
 
-All repos in `REPOS_DIR` can be cloned/fetched over HTTP while pushing stays
-disabled — except those listed in `PRIVATE_REPOS`:
+All repos in `REPOS_DIR` are public — anonymous fetch/clone AND push over
+smart HTTP, no credentials:
 
 ```bash
-PRIVATE_REPOS=secret-repo bun run start
-git clone http://localhost:5177/git/repo1.git   # read-only
+git clone http://localhost:5177/repo1.git
+git push
 ```
 
-Requests are proxied to `git http-backend`; any receive-pack (push) request
-gets a 403. Repos named in `PRIVATE_REPOS` are not served at all.
+Requests are proxied to `git http-backend`. The only restriction is the
+force-push policy below.
+
+## Force-push policy
+
+Non-fast-forward updates are rejected by a per-repo `pre-receive` hook
+(installed automatically). The single admin account (in `users.yaml`) can
+flip a per-repo, in-memory "allow force push" toggle — via the checkbox in
+the repo view, or `setForcePushEnabled` over the API. The toggle resets on
+server restart.
+
+## Admin login
+
+`users.yaml` defines the one login in the system (used for the force-push
+toggle only; everything else is anonymous) — only `admin`-group users can
+sign in:
+
+```yaml
+users:
+  alice:
+    password: "secret"   # plain text, or "sha256:<hex>"
+    groups: [admin]
+```
+
+Override the path with `USERS_FILE`.

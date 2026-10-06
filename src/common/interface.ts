@@ -31,9 +31,8 @@ export type ServerApi = {
   createRepo: (name: string, description?: string) => Promise<string>;
   gitPull: (repo: string) => Promise<string>;
   gitPush: (repo: string) => Promise<string>;
-  /** repo names reachable over http (/<name>.git) by at least one ACL principal */
-  publicRepos: () => Promise<string[]>;
   /** break-glass per-repo: are force pushes currently allowed (in-memory, resets on restart) */
   forcePushEnabled: (repo: string) => Promise<boolean>;
+  /** admin-only: toggle force pushes for a repo over http */
   setForcePushEnabled: (repo: string, value: boolean) => Promise<boolean>;
 };
