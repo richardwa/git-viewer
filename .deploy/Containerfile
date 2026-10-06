@@ -13,8 +13,7 @@ COPY .  .
 
 RUN ["bun", "run", "build"]
 
-#replace sample acl
-COPY .deploy/acl.yaml .
+# replace sample acl with the host-provided one (mounted from ~/.secrets by app.container)
 
 # run entry point
 CMD ["bun", "run", "start"]

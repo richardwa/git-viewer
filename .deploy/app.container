@@ -16,6 +16,7 @@ Environment=REPOS_DIR=/REPOS
 Volume=%h/.ssh:/root/.ssh:ro
 
 Environment=ACL_FILE=/app/acl.yaml
+Volume=%h/.secrets/acl.yaml:/app/acl.yaml:ro
 
 Volume=%h/certs:/root/certs:ro
 Environment=TLS_CERT=/root/certs/cert.pem
