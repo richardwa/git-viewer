@@ -7,5 +7,6 @@ WorkingDirectory=%h/app
 ExecStart=/usr/local/bin/bun scripts/build-daemon.ts
 Environment=RUN_ONCE=1
 Environment=REPOS_DIR=%h/repos
+Environment=ARTIFACTS_DIR=%h/artifacts
 # long builds must not be killed mid-flight
 TimeoutStartSec=0

@@ -12,6 +12,11 @@ PublishPort=0.0.0.0:7845:7845
 Volume=%h/repos:/REPOS
 Environment=REPOS_DIR=/REPOS
 
+# artifacts (build outputs) live outside the repos dir; the viewer reads run
+# statuses here and the post-receive hook dedupes against it
+Volume=%h/artifacts:/ARTIFACTS
+Environment=ARTIFACTS_DIR=/ARTIFACTS
+
 # share host ssh keys for push to github.com
 Volume=%h/.ssh:/root/.ssh:ro
 

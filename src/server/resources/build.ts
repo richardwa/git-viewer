@@ -10,17 +10,29 @@
 //   full commit from the repo (see scripts/build-daemon.ts).
 //
 // The viewer container never runs podman — it only writes job files and
-// reads back artifacts from <reposDir>/<repo>.art/<branch>/<time>-<hash6>/.
+// reads back artifacts from <ARTIFACTS_DIR>/<repo>.art/<branch>/<time>-<hash6>/.
 import fs from "node:fs/promises";
 import path from "node:path";
 import { execFile } from "child_process";
 import { promisify } from "util";
 import { BuildRun, BuildStatus } from "../../common/interface";
+import os from "node:os";
 import { reposDir, repoDir, isValidRepoName } from "./git";
 
 const execFileAsync = promisify(execFile);
 
 export const queueDir = path.join(reposDir, ".build-queue");
+
+/** Artifacts live outside the repos dir: ARTIFACTS_DIR (default ~/artifacts).
+ *  Must differ from REPOS_DIR — builds write here, repos are served here. */
+export const artifactsDir = process.env.ARTIFACTS_DIR
+  ? path.resolve(process.env.ARTIFACTS_DIR)
+  : path.join(os.homedir(), "artifacts");
+if (artifactsDir === reposDir) {
+  throw new Error(
+    `REPOS_DIR and ARTIFACTS_DIR must differ (both are ${reposDir})`,
+  );
+}
 
 const dirExists = async (dir: string) =>
   fs
@@ -28,9 +40,9 @@ const dirExists = async (dir: string) =>
     .then(() => true)
     .catch(() => false);
 
-/** Name of the art root for a repo: <repo>.art sits beside the repo in the
- *  repos dir — naming convention only, so artifacts stay together. */
-export const artDir = (repo: string) => path.join(reposDir, `${repo}.art`);
+/** Name of the art root for a repo: <repo>.art sits under ARTIFACTS_DIR —
+ *  naming convention only, so artifacts stay together. */
+export const artDir = (repo: string) => path.join(artifactsDir, `${repo}.art`);
 
 const sanitize = (s: string) => s.replace(/[/\\]/g, "-");
 
@@ -47,7 +59,7 @@ const hookScript = (repo: string) => `#!/bin/sh
 # contains a Containerfile.build at its root. State machine lives in the
 # daemon; the build itself is a podman build of that Containerfile.
 QUEUE=${shq(queueDir)}
-ART=${shq(reposDir)}
+ART=${shq(artifactsDir)}
 REPO=${shq(repo)}
 iszero() { case "$1" in ''|*[!0]*) return 1 ;; *) return 0 ;; esac; }
 while read old new ref; do

@@ -33,6 +33,15 @@ const execFileAsync = promisify(execFile);
 const reposDir = process.env.REPOS_DIR
   ? path.resolve(process.env.REPOS_DIR)
   : path.join(os.homedir(), "repos");
+const artifactsDir = process.env.ARTIFACTS_DIR
+  ? path.resolve(process.env.ARTIFACTS_DIR)
+  : path.join(os.homedir(), "artifacts");
+if (artifactsDir === reposDir) {
+  console.error(
+    `[build-daemon] REPOS_DIR and ARTIFACTS_DIR must differ (both are ${reposDir})`,
+  );
+  process.exit(1);
+}
 const pollMs = Number(process.env.POLL_MS || 3000);
 
 const queueDir = path.join(reposDir, ".build-queue");
@@ -114,7 +123,7 @@ const buildOne = async (file: string) => {
     return;
   }
 
-  const outDir = path.join(reposDir, `${repo}.art`, branch, `${ts}-${hash6}`);
+  const outDir = path.join(artifactsDir, `${repo}.art`, branch, `${ts}-${hash6}`);
   await mkdir(outDir, { recursive: true });
   await writeFile(path.join(outDir, "status"), "running\n");
 
@@ -145,7 +154,7 @@ const buildOne = async (file: string) => {
     await writeFile(path.join(outDir, "status"), "done\n");
     // keep <repo>.art/<branch>/latest pointing at the newest successful run
     // (tmp symlink + rename so readers never see a missing/broken link)
-    const branchDir = path.join(reposDir, `${repo}.art`, branch);
+    const branchDir = path.join(artifactsDir, `${repo}.art`, branch);
     const linkTmp = path.join(branchDir, `.latest.${ts}-${hash6}.tmp`);
     await symlink(`${ts}-${hash6}`, linkTmp);
     await rename(linkTmp, path.join(branchDir, "latest"));
@@ -204,7 +213,7 @@ const tick = async () => {
   }
 };
 
-log(`watching ${queueDir} (poll: ${pollMs}ms)`);
+log(`watching ${queueDir} → ${artifactsDir} (poll: ${pollMs}ms)`);
 // RUN_ONCE=1: drain the queue, then exit — for systemd oneshot units
 // (a .path unit fires on queue writes, a .timer polls as a safety net).
 if (process.env.RUN_ONCE === "1") {

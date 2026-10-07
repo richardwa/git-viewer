@@ -8,6 +8,7 @@
     "format": "bun x prettier -w *.json *.ts ./src",
     "prebuild": "bun run format",
     "build": "tsc && bun --bun x vite build",
+    "build:server": "bun --bun x vite build --config vite.server.config.ts",
     "start": "bun src/server/server.ts",
     "samples": "bun scripts/sample-repos.ts",
     "test": "bun test src/server"
