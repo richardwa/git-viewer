@@ -1,0 +1,15 @@
+# Build recipe for git-viewer, driven by the build daemon:
+#   podman build -f Containerfile.build -t gitviewer/git-viewer:<branch>-<hash> .
+#   podman run --rm -e OUTPUT=/output -v <rundir>:/output gitviewer/git-viewer:...
+# The build stage is setup (deps + sources); the run stage is the build —
+# it compiles the client bundle and copies ./dist into $OUTPUT.
+FROM docker.io/oven/bun:1
+
+WORKDIR /src
+
+# install dependencies first so this layer caches across source changes
+COPY package.json bun.lock ./
+RUN bun install --frozen-lockfile
+
+COPY . .
+CMD ["sh", "-c", "bun run build && cp -r dist/. \"$OUTPUT\"/"]

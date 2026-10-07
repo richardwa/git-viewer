@@ -38,14 +38,14 @@ const sanitize = (s: string) => s.replace(/[/\\]/g, "-");
 const shq = (s: string) => `"${s.replace(/[\\"]/g, "\\$&")}"`;
 
 /** Source of the managed post-receive hook. Installed per-repo by
- *  ensureBuildHook; fires a build job when a pushed commit carries a build
- *  script. Pure shell + git — the hook runs inside the viewer container and
- *  must never touch podman. */
+ *  ensureBuildHook; fires a build job when a pushed commit carries a
+ *  Containerfile.build. Pure shell + git — the hook runs inside the viewer
+ *  container and must never touch podman. */
 const hookScript = (repo: string) => `#!/bin/sh
 # git-viewer-managed-build-hook
 # Managed by git-viewer: spools a build job for pushes whose tip commit
-# contains a build.yaml/.build.yaml manifest. State machine lives in the
-# daemon; the manifest (container + script) is re-read there from the commit.
+# contains a Containerfile.build at its root. State machine lives in the
+# daemon; the build itself is a podman build of that Containerfile.
 QUEUE=${shq(queueDir)}
 ART=${shq(reposDir)}
 REPO=${shq(repo)}
@@ -53,13 +53,7 @@ iszero() { case "$1" in ''|*[!0]*) return 1 ;; *) return 0 ;; esac; }
 while read old new ref; do
   case "$ref" in refs/heads/*) ;; *) continue ;; esac
   iszero "$new" && continue
-  if git cat-file -e "$new:build.yaml" 2>/dev/null; then
-    manifest=build.yaml
-  elif git cat-file -e "$new:.build.yaml" 2>/dev/null; then
-    manifest=.build.yaml
-  else
-    continue
-  fi
+  git cat-file -e "$new:Containerfile.build" 2>/dev/null || continue
   branch=\${ref#refs/heads/}
   ts=$(date +%Y%m%d-%H%M%S)
   hash6=$(git rev-parse --short=6 "$new")

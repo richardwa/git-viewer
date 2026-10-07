@@ -4,33 +4,25 @@
 // post-receive hook (see src/server/resources/build.ts) and runs each build
 // inside a podman container:
 //
-//   podman run --rm \
-//     -v <worktree>:/src \
-//     -v <reposDir>/<repo>.art/<branch>/<time>-<hash6>:/output \
-//     <image> sh -c 'cd /src && sh build.sh > /output/build.log 2>&1'
+//   podman build -f Containerfile.build -t gitviewer/<repo>:<branch>-<hash6> .
+//   podman run --rm -e OUTPUT=/output -v <art>:/output gitviewer/<repo>:...
+//   (run in the checked-out worktree; the container writes its artifacts to
+//   $OUTPUT, which the daemon bind-mounts to the run dir; log captured there)
 //
 // Job file: <time>-<repo>-<branch>-<hash6>.txt, content is the state word
 // ("queued" | "running" | "done" | "failed"). The queue is the transport
 // across the container/host boundary; all metadata is re-derived here via
 // git, so the file body stays a plain state word.
 //
-// The build manifest (build.yaml or .build.yaml at the commit's root) names
-// the container and script:
-//
-//   container: BunContainer   # key into the container registry below
-//   script: build.sh          # default: build.sh
-//
-// The registry maps names to image refs; CONTAINERS_FILE (a YAML file with
-// the same shape) adds/overrides entries.
+// A commit is built only if it has a Containerfile.build at its root.
 //
 // Single-threaded by design: jobs are processed strictly one at a time,
 // oldest (filename = timestamp prefix) first. Run ONE daemon instance.
 //
 // Usage (on the host):
-//   REPOS_DIR=/path/to/repos BUILD_IMAGE=debian:trixie bun scripts/build-daemon.ts
+//   REPOS_DIR=/path/to/repos bun scripts/build-daemon.ts
 import { spawn, execFile } from "child_process";
-import { mkdtemp, readFile, readdir, rm, writeFile, rename, mkdir } from "node:fs/promises";
-import { parse as parseYaml } from "yaml";
+import { mkdtemp, readFile, readdir, rm, writeFile, rename, mkdir, symlink } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -41,7 +33,6 @@ const execFileAsync = promisify(execFile);
 const reposDir = process.env.REPOS_DIR
   ? path.resolve(process.env.REPOS_DIR)
   : path.join(os.homedir(), "repos");
-const image = process.env.BUILD_IMAGE || "debian:trixie";
 const pollMs = Number(process.env.POLL_MS || 3000);
 
 const queueDir = path.join(reposDir, ".build-queue");
@@ -83,56 +74,21 @@ const checkout = (repoDir: string, commit: string): Promise<string> =>
     }, reject);
   });
 
-/** Container registry: named container definitions available to build
- *  manifests. CONTAINERS_FILE (same shape) merges on top. */
-const builtinContainers: Record<string, string> = {
-  BunContainer: "docker.io/oven/bun:1",
-};
-
-const containerRegistry = async (): Promise<Record<string, string>> => {
-  const file = process.env.CONTAINERS_FILE;
-  const extra = file
-    ? (await readFile(file, "utf8").then(
-        (t) => parseYaml(t) as Record<string, string>,
-        () => ({}),
-      ))
-    : {};
-  return { ...builtinContainers, ...extra };
-};
-
-/** Read + validate the build manifest at a commit. Null when absent/invalid. */
-const readManifest = async (
+/** True when the commit has a Containerfile.build at its root. */
+const hasContainerfile = async (
   repoDir: string,
   commit: string,
-): Promise<{ container: string; script: string } | null> => {
-  for (const name of ["build.yaml", ".build.yaml"]) {
-    let text: string;
-    try {
-      text = (
-        await run(repoDir, "git", ["cat-file", "-p", `${commit}:${name}`])
-      ).stdout;
-    } catch {
-      continue; // not present at this commit
-    }
-    const m = (parseYaml(text) ?? {}) as {
-      container?: unknown;
-      script?: unknown;
-    };
-    const container = typeof m.container === "string" ? m.container : "";
-    const script = typeof m.script === "string" ? m.script : "build.sh";
-    // script must be a plain filename: no path parts, no shell metacharacters
-    // — it is interpolated into the container's `sh -c` command string
-    if (
-      !container ||
-      !/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(script) ||
-      script.includes("..")
-    ) {
-      log(`invalid manifest ${name} at ${commit}: container=${container} script=${script}`);
-      return null;
-    }
-    return { container, script };
+): Promise<boolean> => {
+  try {
+    await run(repoDir, "git", [
+      "cat-file",
+      "-e",
+      `${commit}:Containerfile.build`,
+    ]);
+    return true;
+  } catch {
+    return false; // not present at this commit
   }
-  return null;
 };
 
 const buildOne = async (file: string) => {
@@ -152,17 +108,9 @@ const buildOne = async (file: string) => {
     return;
   }
   const full = (await run(reposDir, "git", ["-C", repoGitDir(repo), "rev-parse", hash6])).stdout.trim();
-  const manifest = await readManifest(repoGitDir(repo), full);
-  if (!manifest) {
+  if (!(await hasContainerfile(repoGitDir(repo), full))) {
     await setState(file, "failed");
-    log(`${repo}/${branch}: no valid build.yaml at ${full}`);
-    return;
-  }
-  const registry = await containerRegistry();
-  const image = registry[manifest.container];
-  if (!image) {
-    await setState(file, "failed");
-    log(`${repo}/${branch}: unknown container '${manifest.container}' in registry`);
+    log(`${repo}/${branch}: no Containerfile.build at ${full}`);
     return;
   }
 
@@ -171,16 +119,36 @@ const buildOne = async (file: string) => {
   await writeFile(path.join(outDir, "status"), "running\n");
 
   const worktree = await checkout(repoGitDir(repo), full);
+  const tag = `gitviewer/${repo}:${branch}-${hash6}`;
+  const logTo = (r: { stdout: string; stderr: string }) =>
+    `${r.stdout}${r.stderr}`;
   try {
-    await run(reposDir, "podman", [
-      "run", "--rm",
-      "-v", `${worktree}:/src`,
-      "-v", `${outDir}:/output`,
-      image,
-      "/bin/sh", "-c", `cd /src && sh ${manifest.script} > /output/build.log 2>&1`,
-    ]);
+    const buildOut = logTo(
+      await run(worktree, "podman", [
+        "build",
+        "-f", "Containerfile.build",
+        "-t", tag,
+        ".",
+      ]),
+    );
+    // the built image emits artifacts to $OUTPUT; the run dir is mounted there
+    const runOut = logTo(
+      await run(worktree, "podman", [
+        "run", "--rm",
+        "-e", "OUTPUT=/output",
+        "-v", `${outDir}:/output`,
+        tag,
+      ]),
+    );
+    await writeFile(path.join(outDir, "build.log"), `${buildOut}${runOut}`);
     await setState(file, "done");
     await writeFile(path.join(outDir, "status"), "done\n");
+    // keep <repo>.art/<branch>/latest pointing at the newest successful run
+    // (tmp symlink + rename so readers never see a missing/broken link)
+    const branchDir = path.join(reposDir, `${repo}.art`, branch);
+    const linkTmp = path.join(branchDir, `.latest.${ts}-${hash6}.tmp`);
+    await symlink(`${ts}-${hash6}`, linkTmp);
+    await rename(linkTmp, path.join(branchDir, "latest"));
     // done is recorded durably in the art dir (status file + run dir name);
     // drop the job file so the queue only ever holds active/failed work
     await rm(file);
@@ -236,7 +204,7 @@ const tick = async () => {
   }
 };
 
-log(`watching ${queueDir} (image: ${image}, poll: ${pollMs}ms)`);
+log(`watching ${queueDir} (poll: ${pollMs}ms)`);
 // RUN_ONCE=1: drain the queue, then exit — for systemd oneshot units
 // (a .path unit fires on queue writes, a .timer polls as a safety net).
 if (process.env.RUN_ONCE === "1") {

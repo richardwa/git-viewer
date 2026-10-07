@@ -80,7 +80,7 @@ is built automatically on push:
   daemon by hand:
 
   ```bash
-  REPOS_DIR=/path/to/repos BUILD_IMAGE=debian:trixie bun scripts/build-daemon.ts
+  REPOS_DIR=/path/to/repos bun scripts/build-daemon.ts
   ```
 
   or install it as systemd user units (fswatcher + fallback timer) by copying
