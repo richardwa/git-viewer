@@ -83,10 +83,14 @@ is built automatically on push:
   REPOS_DIR=/path/to/repos BUILD_IMAGE=debian:trixie bun scripts/build-daemon.ts
   ```
 
-  or install it as systemd user units (fswatcher + fallback timer) with:
+  or install it as systemd user units (fswatcher + fallback timer) by copying
+  the unit files (they already contain the full paths, `%h` = home):
 
   ```bash
-  REPOS_DIR=/path/to/repos .deploy/install.sh
+  cp .deploy/gitviewer-build.{service,path,timer} \
+    ~/.config/systemd/user/
+  systemctl --user daemon-reload
+  systemctl --user enable --now gitviewer-build.path gitviewer-build.timer
   ```
 
   The `.path` unit watches the queue and fires a oneshot service that drains
