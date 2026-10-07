@@ -126,6 +126,19 @@ const buildOne = async (file: string) => {
   const outDir = path.join(artifactsDir, `${repo}.art`, branch, `${ts}-${hash6}`);
   await mkdir(outDir, { recursive: true });
   await writeFile(path.join(outDir, "status"), "running\n");
+  // build.properties: identifies the exact build; the container copies it
+  // into dist so the running server exposes it statically
+  await writeFile(
+    path.join(outDir, "build.properties"),
+    [
+      `build.path=${outDir}`,
+      `build.name=${ts}-${hash6}`,
+      `build.repo=${repo}`,
+      `build.branch=${branch}`,
+      `build.commit=${full}`,
+      `build.time=${ts}`,
+    ].join("\n") + "\n",
+  );
 
   const worktree = await checkout(repoGitDir(repo), full);
   const tag = `gitviewer/${repo}:${branch}-${hash6}`;
