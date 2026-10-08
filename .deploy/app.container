@@ -2,9 +2,10 @@
 Description=App Container
 
 [Container]
+EnvironmentFile=%h/deployment-target.env
 Image=docker.io/oven/bun:1.4-alpine
 ContainerName=app
-Environment=ARTIFACT_DIR=@ARTIFACT_DIR@
+Environment=ARTIFACT_DIR=%env{ARTIFACT_DIR}
 Environment=TZ=America/New_York
 
 Environment=PORT=7845
@@ -16,7 +17,7 @@ Environment=REPOS_DIR=/REPOS
 Volume=%h/artifacts:/ARTIFACTS
 Environment=ARTIFACTS_DIR=/ARTIFACTS
 
-Volume=${ARTIFACT_DIR}:/APP:ro
+Volume=%env{ARTIFACT_DIR}:/APP:ro
 Exec=bun /APP/server/server-bundle.min.js
 
 # share host ssh keys for push to github.com
