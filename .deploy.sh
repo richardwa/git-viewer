@@ -16,7 +16,7 @@
 set -euo pipefail
 
 # where new artifacts are published (branch latest)
-LATEST=/home/my-repos/artifacts/git-viewer/main/latest
+LATEST=/home/my-repos/artifacts/git-viewer.art/main/latest
 
 SRC_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SRC_DEPLOY="$SRC_ROOT/.deploy"
@@ -29,24 +29,24 @@ QUADLET_DIR="$HOME/.config/containers/systemd"
 # 1. self-install: script at ~/app/.deploy.sh, unit files at ~/app/.deploy
 #    (skip when already running from the installed copy)
 if [[ "$SRC_ROOT" != "$APP_DIR" ]]; then
-	cp -a "$SRC_DEPLOY" "$APP_DEPLOY"
-	cp "$SRC_ROOT/.deploy.sh" "$APP_SCRIPT"
-	chmod 755 "$APP_SCRIPT"
+  cp -a "$SRC_DEPLOY" "$APP_DEPLOY"
+  cp "$SRC_ROOT/.deploy.sh" "$APP_SCRIPT"
+  chmod 755 "$APP_SCRIPT"
 fi
 
 # 2. quadlet units
 mkdir -p "$QUADLET_DIR"
 install -m 644 "$SRC_DEPLOY"/app.container \
-	"$SRC_DEPLOY"/gitviewer-build.path \
-	"$SRC_DEPLOY"/gitviewer-build.service \
-	"$SRC_DEPLOY"/gitviewer-build.timer \
-	"$QUADLET_DIR"/
+  "$SRC_DEPLOY"/gitviewer-build.path \
+  "$SRC_DEPLOY"/gitviewer-build.service \
+  "$SRC_DEPLOY"/gitviewer-build.timer \
+  "$QUADLET_DIR"/
 
 # 3. pin the current artifact
 REAL="$(realpath "$LATEST")"
 if [[ ! -d "$REAL" ]]; then
-	echo "artifact not found: $LATEST -> $REAL" >&2
-	exit 1
+  echo "artifact not found: $LATEST -> $REAL" >&2
+  exit 1
 fi
 ENV_FILE="$APP_DIR/deployment-target.env"
 cat >"$ENV_FILE" <<EOF
