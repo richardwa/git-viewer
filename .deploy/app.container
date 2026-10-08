@@ -2,7 +2,10 @@
 Description=App Container
 
 [Container]
-Image=app
+# pinned to a concrete artifact via EnvironmentFile (written by deploy.sh,
+# which resolves the `latest` link); restarts never move the build
+EnvironmentFile=%h/app/deployment-target.env
+Image=docker.io/oven/bun:1.4-alpine
 ContainerName=app
 Environment=TZ=America/New_York
 
@@ -12,10 +15,15 @@ PublishPort=0.0.0.0:7845:7845
 Volume=%h/repos:/REPOS
 Environment=REPOS_DIR=/REPOS
 
-# artifacts (build outputs) live outside the repos dir; the viewer reads run
+# live artifacts data (build outputs / run statuses); the viewer reads run
 # statuses here and the post-receive hook dedupes against it
 Volume=%h/artifacts:/ARTIFACTS
 Environment=ARTIFACTS_DIR=/ARTIFACTS
+
+# the app itself runs from the pinned artifact (immutable)
+Volume=${ARTIFACT_DIR}:/APP:ro
+WorkingDirectory=/APP
+Exec=bun /APP/server/server-bundle.min.js
 
 # podman fails to start (statfs error) if a bind-mount source is missing;
 # ensure the volumes' host dirs exist first
@@ -24,8 +32,8 @@ ExecStartPre=/bin/mkdir -p %h/artifacts %h/repos
 # share host ssh keys for push to github.com
 Volume=%h/.ssh:/root/.ssh:ro
 
-Environment=ACL_FILE=/app/acl.yaml
-Volume=%h/.secrets/acl.yaml:/app/acl.yaml:ro
+Environment=ACL_FILE=/config/acl.yaml
+Volume=%h/.secrets/acl.yaml:/config/acl.yaml:ro
 
 Volume=%h/certs:/root/certs:ro
 Environment=TLS_CERT=/root/certs/cert.pem
