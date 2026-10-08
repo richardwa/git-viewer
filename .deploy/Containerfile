@@ -1,5 +1,6 @@
 FROM oven/bun:alpine
 
 # Install git via apk
-RUN apk add --no-cache git
+RUN apk add --no-cache git git-daemon openssh-client
+
 
