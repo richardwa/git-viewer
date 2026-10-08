@@ -63,8 +63,7 @@ cat >"$ENV_FILE" <<EOF
 ARTIFACT_DIR=$REAL
 EOF
 chmod 644 "$ENV_FILE"
-sed -i "s|^Environment=ARTIFACT_DIR=.*|Environment=ARTIFACT_DIR=$REAL|" \\
-  "$QUADLET_DIR/app.container"
+sed -i "s|^Environment=ARTIFACT_DIR=.*|Environment=ARTIFACT_DIR=$REAL|" "$QUADLET_DIR/app.container"
 echo "pinned: $LATEST -> $REAL ($ENV_FILE)"
 
 # 4. apply: regenerate units, then bring the running app onto the pinned
