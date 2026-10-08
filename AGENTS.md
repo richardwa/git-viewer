@@ -42,9 +42,10 @@ build step at deploy time.
   single deployment entry point**; the deployment system triggers it, and
   initial install vs. later deploys are the same operation. Idempotently:
   copies the unit files to `~/app/.deploy/` and itself to
-  `~/app/.deploy.sh`, installs the quadlet units to
-  `~/.config/containers/systemd/`, pins the artifact, then
-  `daemon-reload` + restart of `app.service`.
+  `~/app/.deploy/` and itself to `~/app/.deploy.sh`, installs the quadlet
+  units to `~/.config/containers/systemd/`, pins the artifact (writes
+  `~/deployment-target.env`), then `daemon-reload` + restart of
+  `app.service`.
 - `.deploy/app.container` — runs `oven/bun:1.4-alpine` with the pinned
   artifact mounted read-only at `/APP`; executes
   `bun /APP/server/server-bundle.min.js`. Live data (repos, artifacts store,
@@ -53,7 +54,7 @@ build step at deploy time.
   drain service; runs `build-daemon.ts` from the same pinned artifact via
   the same `EnvironmentFile`.
 
-Key invariant: **`~/app/deployment-target.env` is the pin.** Restarts always
+Key invariant: **`~/deployment-target.env` is the pin.** Restarts always
 re-read it, but it holds a resolved real path (never the `latest` symlink),
 so restarting can never pick up a new build. Only a deploy run moves
 forward; rollback is re-pinning the env file + restart.
