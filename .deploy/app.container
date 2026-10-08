@@ -2,8 +2,9 @@
 Description=App Container
 
 [Container]
-# pinned to a concrete artifact via EnvironmentFile (written by deploy.sh,
-# which resolves the `latest` link); restarts never move the build
+# pinned to a concrete artifact via EnvironmentFile (written by
+# .deploy/deploy.sh, which resolves the `latest` link); restarts never
+# move the build
 EnvironmentFile=%h/app/deployment-target.env
 Image=docker.io/oven/bun:1.4-alpine
 ContainerName=app
@@ -44,4 +45,3 @@ Restart=always
 
 [Install]
 WantedBy=default.target
-

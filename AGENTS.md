@@ -32,6 +32,35 @@ bun run format     # prettier over *.json, *.ts, ./src
 
 There are no tests in the starter. `tsc` (run via `bun run build`) is the type gate — keep it passing.
 
+## Deployment
+
+Deployment targets a host running the app as **user quadlet units** (systemd
+generators for podman). The build artifacts are immutable; there is no image
+build step at deploy time.
+
+- `.deploy.sh` (repo root, self-installed as `~/app/.deploy.sh`) — **the
+  single deployment entry point**; the deployment system triggers it, and
+  initial install vs. later deploys are the same operation. Idempotently:
+  copies the unit files to `~/app/.deploy/` and itself to
+  `~/app/.deploy.sh`, installs the quadlet units to
+  `~/.config/containers/systemd/`, pins the artifact, then
+  `daemon-reload` + restart of `app.service`.
+- `.deploy/app.container` — runs `oven/bun:1.4-alpine` with the pinned
+  artifact mounted read-only at `/APP`; executes
+  `bun /APP/server/server-bundle.min.js`. Live data (repos, artifacts store,
+  certs, ACL) is mounted separately.
+- `.deploy/gitviewer-build.{path,service,timer}` — queue watcher + oneshot
+  drain service; runs `build-daemon.ts` from the same pinned artifact via
+  the same `EnvironmentFile`.
+
+Key invariant: **`~/app/deployment-target.env` is the pin.** Restarts always
+re-read it, but it holds a resolved real path (never the `latest` symlink),
+so restarting can never pick up a new build. Only a deploy run moves
+forward; rollback is re-pinning the env file + restart.
+
+Unit files in `.deploy/` are plain text — edit them there; `.deploy.sh`
+reinstalls them on every run.
+
 ## Project layout
 
 ```
