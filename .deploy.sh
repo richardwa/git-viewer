@@ -8,6 +8,8 @@ REAL="$(realpath "$LATEST")"
 ln -sf "$REAL" "$HOME/deployment-target"
 ls -al "$HOME/deployment-target"
 
+# build image
+podman build -f "$SRC_ROOT"/.deploy/Containerfile -t app "$HOME/app"
 
 # install files to user systemd dir
 SYSTEMD_DIR="$HOME/.config/containers/systemd"

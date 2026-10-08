@@ -1,0 +1,5 @@
+FROM oven/bun:alpine
+
+# Install git via apk
+RUN apk add --no-cache git
+
