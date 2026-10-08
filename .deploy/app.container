@@ -2,10 +2,6 @@
 Description=App Container
 
 [Container]
-# pinned to a concrete artifact: .deploy.sh resolves the `latest` link and
-# bakes the resolved dir into the Environment= line below (quadlet cannot
-# interpolate ${VAR} from EnvironmentFile in Volume= — podman issue
-# #26997), so restarts never move the build
 Image=docker.io/oven/bun:1.4-alpine
 ContainerName=app
 Environment=ARTIFACT_DIR=@ARTIFACT_DIR@
@@ -17,20 +13,11 @@ PublishPort=0.0.0.0:7845:7845
 Volume=%h/repos:/REPOS
 Environment=REPOS_DIR=/REPOS
 
-# live artifacts data (build outputs / run statuses); the viewer reads run
-# statuses here and the post-receive hook dedupes against it
 Volume=%h/artifacts:/ARTIFACTS
 Environment=ARTIFACTS_DIR=/ARTIFACTS
 
-# the app itself runs from the pinned artifact (immutable)
 Volume=${ARTIFACT_DIR}:/APP:ro
-PodmanArgs=--workdir=/APP
 Exec=bun /APP/server/server-bundle.min.js
-
-# podman fails to start (statfs error) if a bind-mount source is missing;
-# ensure the volumes' host dirs exist first (%h/logs for the log files
-# referenced by StandardOutput/StandardError below)
-ExecStartPre=/bin/mkdir -p %h/artifacts %h/repos %h/logs
 
 # share host ssh keys for push to github.com
 Volume=%h/.ssh:/root/.ssh:ro
@@ -44,9 +31,6 @@ Environment=TLS_KEY=/root/certs/key.pem
 
 [Service]
 Restart=always
-# log to host files instead of (only) the journal
-StandardOutput=append:%h/logs/app.log
-StandardError=append:%h/logs/app.log
 
 [Install]
 WantedBy=default.target
