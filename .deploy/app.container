@@ -15,7 +15,7 @@ Environment=REPOS_DIR=/REPOS
 Volume=%h/artifacts:/ARTIFACTS
 Environment=ARTIFACTS_DIR=/ARTIFACTS
 
-Volume=%h/deployment-target
+Volume=%h/deployment-target:/APP
 Exec=bun /APP/server/server-bundle.min.js
 
 # share host ssh keys for push to github.com
