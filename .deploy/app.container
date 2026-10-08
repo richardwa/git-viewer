@@ -17,6 +17,10 @@ Environment=REPOS_DIR=/REPOS
 Volume=%h/artifacts:/ARTIFACTS
 Environment=ARTIFACTS_DIR=/ARTIFACTS
 
+# podman fails to start (statfs error) if a bind-mount source is missing;
+# ensure the volumes' host dirs exist first
+ExecStartPre=/bin/mkdir -p %h/artifacts %h/repos
+
 # share host ssh keys for push to github.com
 Volume=%h/.ssh:/root/.ssh:ro
 

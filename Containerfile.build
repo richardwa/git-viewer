@@ -6,12 +6,15 @@
 #   server/server-bundle.min.js   the server, deps bundled in (run with bun/node)
 #   server/dist/                  client bundle served by the server bundle
 #   server.zip                    the server/ folder as one downloadable file
+#   build-daemon.ts               the build daemon (single file, node builtins
+#                                 only — no deps, so no bundling needed)
 #   build.properties              daemon-written build identity (copied into
 #                                 server/dist by the run stage so the running
 #                                 server serves it statically)
 # The build stage is setup (deps + sources); the run stage is the build:
 # server typecheck + bundle, then the client bundle emitted into server/dist.
-FROM docker.io/oven/bun:1
+# The steps themselves live in scripts/build-container.sh.
+FROM docker.io/oven/bun:1-alpine
 
 # zip: bundle the artifact into a single downloadable file
 RUN apk add --no-cache zip
@@ -23,12 +26,4 @@ COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile
 
 COPY . .
-CMD ["sh", "-c", "\
-  set -e; \
-  mkdir -p \"$OUTPUT/server\"; \
-  bunx tsc; \
-  bun run build:server; \
-  cp build/server/server-bundle.min.js \"$OUTPUT/server/server-bundle.min.js\"; \
-  bun --bun x vite build --outDir \"$OUTPUT/server/dist\" --emptyOutDir; \
-  cp \"$OUTPUT/build.properties\" \"$OUTPUT/server/dist/build.properties\"; \
-  cd \"$OUTPUT\" && zip -qr server.zip server"]
+CMD ["sh", "scripts/build-container.sh"]
