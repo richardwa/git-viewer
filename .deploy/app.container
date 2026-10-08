@@ -2,10 +2,10 @@
 Description=App Container
 
 [Container]
-# pinned to a concrete artifact via EnvironmentFile (written by
-# .deploy/deploy.sh, which resolves the `latest` link); restarts never
-# move the build
-EnvironmentFile=%h/deployment-target.env
+# pinned to a concrete artifact via the stable ~/app/current symlink (set
+# by .deploy.sh, which resolves the `latest` link); podman resolves the
+# mount through the symlink at container creation, so restarts never move
+# the build
 Image=docker.io/oven/bun:1.4-alpine
 ContainerName=app
 Environment=TZ=America/New_York
@@ -22,7 +22,7 @@ Volume=%h/artifacts:/ARTIFACTS
 Environment=ARTIFACTS_DIR=/ARTIFACTS
 
 # the app itself runs from the pinned artifact (immutable)
-Volume=${ARTIFACT_DIR}:/APP:ro
+Volume=%h/app/current:/APP:ro
 WorkingDirectory=/APP
 Exec=bun /APP/server/server-bundle.min.js
 

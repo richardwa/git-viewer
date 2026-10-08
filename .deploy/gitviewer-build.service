@@ -4,9 +4,9 @@ Description=git-viewer: process pending build jobs (drain queue, exit)
 [Service]
 Type=oneshot
 # build-daemon.ts ships inside the pinned artifact (single file, no deps);
-# the env file is written by .deploy/deploy.sh (resolves the `latest` link)
-EnvironmentFile=%h/deployment-target.env
-ExecStart=/usr/local/bin/bun ${ARTIFACT_DIR}/build-daemon.ts
+# ~/app/current is the symlink set by .deploy.sh (resolves the `latest`
+# link), re-resolved on every service start
+ExecStart=/usr/local/bin/bun %h/app/current/build-daemon.ts
 Environment=RUN_ONCE=1
 Environment=REPOS_DIR=%h/repos
 Environment=ARTIFACTS_DIR=%h/artifacts

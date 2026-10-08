@@ -42,22 +42,26 @@ build step at deploy time.
   single deployment entry point**; the deployment system triggers it, and
   initial install vs. later deploys are the same operation. Idempotently:
   copies the unit files to `~/app/.deploy/` and itself to
-  `~/app/.deploy/` and itself to `~/app/.deploy.sh`, installs the quadlet
-  units to `~/.config/containers/systemd/`, pins the artifact (writes
-  `~/deployment-target.env`), then `daemon-reload` + restart of
-  `app.service`.
+  `~/app/.deploy.sh`, installs the quadlet units to
+  `~/.config/containers/systemd/`, pins the artifact (points the stable
+  `~/app/current` symlink at the resolved realpath of `latest`), then
+  `daemon-reload` + enable + restart.
 - `.deploy/app.container` — runs `oven/bun:1.4-alpine` with the pinned
   artifact mounted read-only at `/APP`; executes
   `bun /APP/server/server-bundle.min.js`. Live data (repos, artifacts store,
   certs, ACL) is mounted separately.
 - `.deploy/gitviewer-build.{path,service,timer}` — queue watcher + oneshot
-  drain service; runs `build-daemon.ts` from the same pinned artifact via
-  the same `EnvironmentFile`.
+  drain service; runs `build-daemon.ts` through the same `~/app/current`
+  symlink (re-resolved on every service start).
 
-Key invariant: **`~/deployment-target.env` is the pin.** Restarts always
-re-read it, but it holds a resolved real path (never the `latest` symlink),
-so restarting can never pick up a new build. Only a deploy run moves
-forward; rollback is re-pinning the env file + restart.
+Key invariant: **the `~/app/current` symlink is the pin.** Podman resolves
+the `/APP` mount through it at container creation, so restarting can never
+pick up a new build — only a deploy run moves the symlink. Rollback is
+re-pointing the symlink + restart.
+
+Quadlet gotcha: `${VAR}` in `Volume=` is NOT interpolated from
+`EnvironmentFile` (podman issue #26997) — that's why the pin is a symlink
+rather than an env var.
 
 Unit files in `.deploy/` are plain text — edit them there; `.deploy.sh`
 reinstalls them on every run.
