@@ -3,10 +3,16 @@ Description=git-viewer: process pending build jobs (drain queue, exit)
 
 [Service]
 Type=oneshot
+# logs to host files instead of (only) the journal; the dir must exist
+# before systemd opens the append target
+ExecStartPre=/bin/mkdir -p %h/logs
+StandardOutput=append:%h/logs/build.log
+StandardError=append:%h/logs/build.log
 # build-daemon.ts ships inside the pinned artifact (single file, no deps);
-# ~/app/current is the symlink set by .deploy.sh (resolves the `latest`
-# link), re-resolved on every service start
-ExecStart=/usr/local/bin/bun %h/app/current/build-daemon.ts
+# the pin file is written by .deploy.sh (resolves the `latest` link);
+# systemd expands ${ARTIFACT_DIR} from EnvironmentFile at service start
+EnvironmentFile=%h/deployment-target.env
+ExecStart=/usr/local/bin/bun ${ARTIFACT_DIR}/build-daemon.ts
 Environment=RUN_ONCE=1
 Environment=REPOS_DIR=%h/repos
 Environment=ARTIFACTS_DIR=%h/artifacts

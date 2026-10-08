@@ -43,25 +43,29 @@ build step at deploy time.
   initial install vs. later deploys are the same operation. Idempotently:
   copies the unit files to `~/app/.deploy/` and itself to
   `~/app/.deploy.sh`, installs the quadlet units to
-  `~/.config/containers/systemd/`, pins the artifact (points the stable
-  `~/app/current` symlink at the resolved realpath of `latest`), then
-  `daemon-reload` + enable + restart.
+  `~/.config/containers/systemd/`, pins the artifact (writes
+  `~/deployment-target.env` and bakes the resolved path into the installed
+  `app.container`), then `daemon-reload` + restart of `app.service`.
 - `.deploy/app.container` — runs `oven/bun:1.4-alpine` with the pinned
   artifact mounted read-only at `/APP`; executes
   `bun /APP/server/server-bundle.min.js`. Live data (repos, artifacts store,
-  certs, ACL) is mounted separately.
+  certs, ACL) is mounted separately. Logs append to `~/logs/app.log` via
+  `StandardOutput/StandardError=append:`.
 - `.deploy/gitviewer-build.{path,service,timer}` — queue watcher + oneshot
-  drain service; runs `build-daemon.ts` through the same `~/app/current`
-  symlink (re-resolved on every service start).
+  drain service; runs `build-daemon.ts` from the pinned artifact via the
+  same `EnvironmentFile` (systemd expands `${ARTIFACT_DIR}` at service
+  start). Logs append to `~/logs/build.log`.
 
-Key invariant: **the `~/app/current` symlink is the pin.** Podman resolves
-the `/APP` mount through it at container creation, so restarting can never
-pick up a new build — only a deploy run moves the symlink. Rollback is
-re-pointing the symlink + restart.
+Key invariant: **`~/deployment-target.env` is the pin.** The deploy step
+resolves `latest` to a real path and bakes it into the installed
+`app.container` as an `Environment=` line — quadlet cannot interpolate
+`${VAR}` from `EnvironmentFile` in `Volume=` (podman issue #26997), which
+is why the baking step exists. Restarting can never pick up a new build —
+only a deploy run moves forward. Rollback is re-pinning + restart.
 
 Quadlet gotcha: `${VAR}` in `Volume=` is NOT interpolated from
-`EnvironmentFile` (podman issue #26997) — that's why the pin is a symlink
-rather than an env var.
+`EnvironmentFile` (podman issue #26997) — that's why the pin is baked into
+the unit instead.
 
 Unit files in `.deploy/` are plain text — edit them there; `.deploy.sh`
 reinstalls them on every run.
